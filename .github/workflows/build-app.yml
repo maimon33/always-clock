@@ -1,0 +1,101 @@
+name: Build Always Clock App
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+
+    - name: Create app icon
+      run: |
+        chmod +x create-icon.sh
+        ./create-icon.sh || echo "Icon creation failed, using default"
+
+    - name: Build app bundle
+      run: |
+        chmod +x package-app.sh
+        ./package-app.sh
+
+    - name: Verify app bundle
+      run: |
+        ls -la dist/
+        if [ -d "dist/Always Clock.app" ]; then
+          echo "✅ App bundle created successfully"
+          echo "App size: $(du -sh 'dist/Always Clock.app' | cut -f1)"
+        else
+          echo "❌ App bundle not found"
+          exit 1
+        fi
+
+    - name: Upload app bundle
+      uses: actions/upload-artifact@v4
+      with:
+        name: always-clock-app
+        path: dist/Always Clock.app
+        retention-days: 30
+
+    - name: Create distribution packages
+      run: |
+        chmod +x create-dmg.sh create-pkg.sh
+        ./create-dmg.sh
+        ./create-pkg.sh
+
+    - name: Create ZIP archive
+      run: |
+        cd dist
+        zip -r "Always-Clock-v1.0.zip" "Always Clock.app"
+        cd ..
+
+    - name: List all distribution files
+      run: |
+        echo "📦 Distribution files created:"
+        ls -la dist/
+        echo ""
+        echo "📊 File sizes:"
+        du -sh dist/* | sort -hr
+
+    - name: Upload DMG installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: always-clock-dmg
+        path: dist/*.dmg
+        retention-days: 30
+
+    - name: Upload PKG installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: always-clock-pkg
+        path: dist/*.pkg
+        retention-days: 30
+
+    - name: Upload ZIP archive
+      uses: actions/upload-artifact@v4
+      with:
+        name: always-clock-zip
+        path: dist/*.zip
+        retention-days: 30
+
+    - name: Upload all distributions
+      uses: actions/upload-artifact@v4
+      with:
+        name: always-clock-all-formats
+        path: |
+          dist/Always Clock.app
+          dist/*.dmg
+          dist/*.pkg
+          dist/*.zip
+        retention-days: 30

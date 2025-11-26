@@ -1,0 +1,134 @@
+name: Release Always Clock
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v1.0, v1.1, etc.
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+
+    permissions:
+      contents: write  # Required to create releases
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Get version from tag
+      id: get_version
+      run: |
+        if [[ $GITHUB_REF == refs/tags/* ]]; then
+          VERSION=${GITHUB_REF#refs/tags/v}
+        else
+          VERSION="1.0"
+        fi
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        echo "Building version: $VERSION"
+
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+
+    - name: Create app icon
+      run: |
+        chmod +x create-icon.sh
+        ./create-icon.sh || echo "Icon creation failed, using default"
+
+    - name: Build complete distribution
+      run: |
+        chmod +x distribute.sh
+        ./distribute.sh
+
+    - name: Prepare release files
+      id: prepare_release
+      run: |
+        cd dist
+
+        # Rename files with version
+        VERSION="${{ steps.get_version.outputs.VERSION }}"
+
+        # Create release notes
+        cat > ../RELEASE_NOTES.md << EOF
+        # Always Clock v$VERSION
+
+        ## 🎯 Features
+        - Always-on-top floating clock
+        - Digital and analog clock modes
+        - Adjustable transparency (10% - 100%)
+        - Resizable (50% - 200%)
+        - Color customization
+        - Drag to reposition anywhere
+        - Start at login option
+        - Menu bar integration
+        - Context menu controls
+        - Works over full-screen applications
+
+        ## 📦 Installation Options
+
+        ### Option 1: DMG Installer (Recommended)
+        1. Download \`Always-Clock-v$VERSION.dmg\`
+        2. Open the DMG file
+        3. Drag "Always Clock" to Applications folder
+
+        ### Option 2: PKG Installer
+        1. Download \`Always-Clock-v$VERSION.pkg\`
+        2. Double-click to run installer wizard
+        3. Follow installation prompts
+
+        ### Option 3: ZIP Archive
+        1. Download \`Always-Clock-v$VERSION.zip\`
+        2. Extract and drag "Always Clock.app" to Applications
+
+        ### Option 4: Direct App Bundle
+        1. Download \`always-clock-app.zip\` from artifacts
+        2. Extract and drag to Applications folder
+
+        ## 💻 System Requirements
+        - macOS 13.0 (Ventura) or later
+        - No additional dependencies required
+
+        ## 🚀 Usage
+        1. Launch "Always Clock" from Applications
+        2. Clock appears on screen - drag to reposition
+        3. Right-click for options or use menu bar icon
+        4. Access Settings to customize appearance
+
+        ---
+
+        Built with ❤️ using SwiftUI and GitHub Actions
+        EOF
+
+        echo "Release notes created"
+        ls -la
+
+        cd ..
+        echo "RELEASE_TAG=v$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.prepare_release.outputs.RELEASE_TAG }}
+        name: Always Clock v${{ steps.get_version.outputs.VERSION }}
+        body_path: RELEASE_NOTES.md
+        draft: false
+        prerelease: false
+        files: |
+          dist/*.dmg
+          dist/*.pkg
+          dist/*.zip
+
+    - name: Upload artifacts (backup)
+      uses: actions/upload-artifact@v4
+      with:
+        name: always-clock-release-v${{ steps.get_version.outputs.VERSION }}
+        path: |
+          dist/Always Clock.app
+          dist/*.dmg
+          dist/*.pkg
+          dist/*.zip
+          RELEASE_NOTES.md
+        retention-days: 90

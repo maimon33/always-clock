@@ -19,6 +19,7 @@ struct AlwaysClockApp: App {
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var clockWindow: NSWindow?
     private var statusItem: NSStatusItem?
+    private var settingsWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupClockWindow()
@@ -44,6 +45,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         clockWindow?.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
         clockWindow?.ignoresMouseEvents = false
         clockWindow?.acceptsMouseMovedEvents = true
+        clockWindow?.isMovableByWindowBackground = false
         clockWindow?.hasShadow = false
         clockWindow?.makeKeyAndOrderFront(nil)
 
@@ -72,9 +74,37 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem?.menu = menu
     }
 
-    @objc private func openSettings() {
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+    @objc func openSettings() {
+        if settingsWindow == nil {
+            let settingsView = SettingsView()
+                .environmentObject(ClockSettings.shared)
+
+            settingsWindow = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 400, height: 500),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+
+            settingsWindow?.title = "Always Clock Settings"
+            settingsWindow?.contentView = NSHostingView(rootView: settingsView)
+            settingsWindow?.center()
+            settingsWindow?.setFrameAutosaveName("SettingsWindow")
+            settingsWindow?.isReleasedWhenClosed = false
+        }
+
+        NSApp.setActivationPolicy(.regular)
+        settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+
+        // Set back to accessory when window closes
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: settingsWindow,
+            queue: .main
+        ) { _ in
+            NSApp.setActivationPolicy(.accessory)
+        }
     }
 
     @objc private func quitApp() {

@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var settings: ClockSettings
-    @State private var dragOffset = CGSize.zero
     @State private var isDragging = false
 
     var body: some View {
@@ -17,34 +16,34 @@ struct ContentView: View {
                 .scaleEffect(settings.clockSize)
         }
         .opacity(settings.transparency)
-        .offset(dragOffset)
-        .scaleEffect(isDragging ? 1.1 : 1.0)
+        .scaleEffect(isDragging ? 1.05 : 1.0)
         .animation(.easeInOut(duration: 0.2), value: isDragging)
         .gesture(
-            DragGesture()
+            DragGesture(coordinateSpace: .global)
                 .onChanged { value in
-                    if !isDragging {
-                        isDragging = true
-                    }
-                    dragOffset = value.translation
-                }
-                .onEnded { value in
-                    isDragging = false
-                    if let window = NSApp.keyWindow {
+                    isDragging = true
+
+                    // Get the mouse location in global coordinates
+                    let mouseLocation = value.location
+
+                    // Find our clock window
+                    if let clockWindow = NSApp.windows.first(where: { window in
+                        window.contentView is NSHostingView<ContentView> && window.level == .floating
+                    }) {
+                        // Calculate new window position (center the window on mouse)
+                        let windowSize = clockWindow.frame.size
                         let newOrigin = CGPoint(
-                            x: window.frame.origin.x + value.translation.width,
-                            y: window.frame.origin.y - value.translation.height
+                            x: mouseLocation.x - windowSize.width / 2,
+                            y: NSScreen.main?.frame.height ?? 0 - mouseLocation.y - windowSize.height / 2
                         )
-                        window.setFrameOrigin(newOrigin)
+
+                        // Move the window
+                        clockWindow.setFrameOrigin(newOrigin)
                     }
-                    dragOffset = .zero
+                }
+                .onEnded { _ in
+                    isDragging = false
                 }
         )
-        .onHover { isHovering in
-            if let window = NSApp.windows.first(where: { $0.contentView is NSHostingView<ContentView> }) {
-                window.ignoresMouseEvents = !isHovering
-            }
-        }
-        .frame(width: 200 * settings.clockSize, height: 200 * settings.clockSize)
     }
 }

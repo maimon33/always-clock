@@ -29,8 +29,9 @@ struct ClockView: View {
             Divider()
 
             Button("Settings...") {
-                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-                NSApp.activate(ignoringOtherApps: true)
+                if let appDelegate = NSApp.delegate as? AppDelegate {
+                    appDelegate.openSettings()
+                }
             }
 
             Divider()

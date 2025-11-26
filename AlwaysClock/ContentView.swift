@@ -32,8 +32,8 @@ struct ContentView: View {
                     isDragging = false
                     if let window = NSApp.keyWindow {
                         let newOrigin = CGPoint(
-                            x: window.frame.origin.x + value.translation.x,
-                            y: window.frame.origin.y - value.translation.y
+                            x: window.frame.origin.x + value.translation.width,
+                            y: window.frame.origin.y - value.translation.height
                         )
                         window.setFrameOrigin(newOrigin)
                     }

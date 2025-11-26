@@ -55,19 +55,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if let button = statusItem?.button {
             button.image = NSImage(systemSymbolName: "clock", accessibilityDescription: "Always Clock")
-            button.action = #selector(statusBarButtonClicked)
-            button.target = self
         }
-    }
 
-    @objc private func statusBarButtonClicked() {
         let menu = NSMenu()
 
-        menu.addItem(NSMenuItem(title: "Settings", action: #selector(openSettings), keyEquivalent: ""))
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Quit Always Clock", action: #selector(quitApp), keyEquivalent: "q"))
+        let settingsItem = NSMenuItem(title: "Settings", action: #selector(openSettings), keyEquivalent: "")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
 
-        statusItem?.popUpMenu(menu)
+        menu.addItem(NSMenuItem.separator())
+
+        let quitItem = NSMenuItem(title: "Quit Always Clock", action: #selector(quitApp), keyEquivalent: "q")
+        quitItem.target = self
+        menu.addItem(quitItem)
+
+        statusItem?.menu = menu
     }
 
     @objc private func openSettings() {
@@ -121,7 +123,7 @@ class ClockSettings: ObservableObject {
         self.isAnalogClock = UserDefaults.standard.bool(forKey: "isAnalogClock")
 
         if let colorData = UserDefaults.standard.data(forKey: "clockColor"),
-           let nsColor = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(colorData) as? NSColor {
+           let nsColor = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSColor.self, from: colorData) {
             self.clockColor = Color(nsColor)
         } else {
             self.clockColor = .white

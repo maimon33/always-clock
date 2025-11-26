@@ -40,8 +40,19 @@ xcodebuild \
 
 echo "📋 Extracting app bundle..."
 
+# Find the actual app name in the archive
+if [ -d "$BUILD_DIR/AlwaysClock.xcarchive/Products/Applications/AlwaysClock.app" ]; then
+    APP_SOURCE="$BUILD_DIR/AlwaysClock.xcarchive/Products/Applications/AlwaysClock.app"
+elif [ -d "$BUILD_DIR/AlwaysClock.xcarchive/Products/Applications/Always Clock.app" ]; then
+    APP_SOURCE="$BUILD_DIR/AlwaysClock.xcarchive/Products/Applications/Always Clock.app"
+else
+    echo "❌ Could not find app in archive. Available files:"
+    ls -la "$BUILD_DIR/AlwaysClock.xcarchive/Products/Applications/" || echo "Applications directory not found"
+    exit 1
+fi
+
 # Copy the app bundle to dist
-cp -R "$BUILD_DIR/AlwaysClock.xcarchive/Products/Applications/Always Clock.app" "$APP_BUNDLE"
+cp -R "$APP_SOURCE" "$APP_BUNDLE"
 
 echo "🔍 Verifying app bundle..."
 

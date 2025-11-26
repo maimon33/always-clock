@@ -51,6 +51,49 @@ struct SettingsView: View {
                 .padding(8)
             }
 
+            GroupBox("Position") {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("X Position:")
+                        Spacer()
+                        TextField("X", value: $settings.windowX, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80)
+                    }
+
+                    HStack {
+                        Text("Y Position:")
+                        Spacer()
+                        TextField("Y", value: $settings.windowY, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80)
+                    }
+
+                    HStack {
+                        Button("Center on Screen") {
+                            if let screen = NSScreen.main {
+                                let screenRect = screen.frame
+                                settings.windowX = (screenRect.width - 200) / 2
+                                settings.windowY = (screenRect.height - 200) / 2
+                            }
+                        }
+                        .buttonStyle(.bordered)
+
+                        Spacer()
+
+                        Button("Top Right") {
+                            if let screen = NSScreen.main {
+                                let screenRect = screen.frame
+                                settings.windowX = screenRect.width - 220
+                                settings.windowY = screenRect.height - 220
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+                .padding(8)
+            }
+
             GroupBox("System") {
                 VStack(alignment: .leading, spacing: 10) {
                     Toggle("Start at login", isOn: $startAtLogin)
@@ -64,6 +107,8 @@ struct SettingsView: View {
                             settings.clockSize = 1.0
                             settings.isAnalogClock = false
                             settings.clockColor = .white
+                            settings.windowX = 100
+                            settings.windowY = 100
                         }
                         .buttonStyle(.bordered)
 

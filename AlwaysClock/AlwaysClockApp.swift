@@ -31,8 +31,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let contentView = ContentView()
             .environmentObject(ClockSettings.shared)
 
+        let settings = ClockSettings.shared
+        let windowSize = max(200 * settings.clockSize, 100)
         clockWindow = NSWindow(
-            contentRect: NSRect(x: 100, y: 100, width: 200, height: 200),
+            contentRect: NSRect(x: settings.windowX, y: settings.windowY, width: windowSize, height: windowSize),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
@@ -130,6 +132,7 @@ class ClockSettings: ObservableObject {
     @Published var clockSize: Double {
         didSet {
             UserDefaults.standard.set(clockSize, forKey: "clockSize")
+            updateWindowSize()
         }
     }
 
@@ -147,16 +150,65 @@ class ClockSettings: ObservableObject {
         }
     }
 
+    @Published var windowX: Double {
+        didSet {
+            UserDefaults.standard.set(windowX, forKey: "windowX")
+            updateWindowPosition()
+        }
+    }
+
+    @Published var windowY: Double {
+        didSet {
+            UserDefaults.standard.set(windowY, forKey: "windowY")
+            updateWindowPosition()
+        }
+    }
+
     init() {
         self.transparency = UserDefaults.standard.double(forKey: "transparency") == 0 ? 0.8 : UserDefaults.standard.double(forKey: "transparency")
         self.clockSize = UserDefaults.standard.double(forKey: "clockSize") == 0 ? 1.0 : UserDefaults.standard.double(forKey: "clockSize")
         self.isAnalogClock = UserDefaults.standard.bool(forKey: "isAnalogClock")
+
+        let savedX = UserDefaults.standard.double(forKey: "windowX")
+        self.windowX = savedX == 0 ? 100 : savedX
+
+        let savedY = UserDefaults.standard.double(forKey: "windowY")
+        self.windowY = savedY == 0 ? 100 : savedY
 
         if let colorData = UserDefaults.standard.data(forKey: "clockColor"),
            let nsColor = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSColor.self, from: colorData) {
             self.clockColor = Color(nsColor)
         } else {
             self.clockColor = .white
+        }
+    }
+
+    private func updateWindowPosition() {
+        DispatchQueue.main.async {
+            if let clockWindow = NSApp.windows.first(where: { window in
+                window.level == .floating
+            }) {
+                let newOrigin = CGPoint(x: self.windowX, y: self.windowY)
+                clockWindow.setFrameOrigin(newOrigin)
+            }
+        }
+    }
+
+    private func updateWindowSize() {
+        DispatchQueue.main.async {
+            if let clockWindow = NSApp.windows.first(where: { window in
+                window.level == .floating
+            }) {
+                let windowSize = max(200 * self.clockSize, 100)
+                let currentFrame = clockWindow.frame
+                let newFrame = NSRect(
+                    x: currentFrame.origin.x,
+                    y: currentFrame.origin.y,
+                    width: windowSize,
+                    height: windowSize
+                )
+                clockWindow.setFrame(newFrame, display: true, animate: false)
+            }
         }
     }
 }

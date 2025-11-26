@@ -6,7 +6,8 @@ struct SettingsView: View {
     @State private var startAtLogin = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
             Text("Always Clock Settings")
                 .font(.title2)
                 .fontWeight(.bold)
@@ -125,8 +126,9 @@ struct SettingsView: View {
             }
 
             Spacer()
+            }
+            .padding(20)
         }
-        .padding(20)
         .frame(width: 400, height: 500)
         .onAppear {
             checkLoginItemStatus()

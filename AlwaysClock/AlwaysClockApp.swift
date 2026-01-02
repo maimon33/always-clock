@@ -20,11 +20,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var clockWindow: NSWindow?
     private var statusItem: NSStatusItem?
     private var settingsWindow: NSWindow?
+    private var globalEventMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupClockWindow()
         setupStatusBarItem()
         setupLoginItem()
+        setupGlobalKeyboardShortcut()
     }
 
     private func setupClockWindow() {
@@ -116,6 +118,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupLoginItem() {
         if #available(macOS 13.0, *) {
             try? SMAppService.mainApp.register()
+        }
+    }
+
+    private func setupGlobalKeyboardShortcut() {
+        globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
+            // Check for Cmd+Shift+T shortcut
+            if event.modifierFlags.contains([.command, .shift]) && event.keyCode == 17 { // T key
+                DispatchQueue.main.async {
+                    self.openSettings()
+                }
+            }
+        }
+    }
+
+    deinit {
+        if let monitor = globalEventMonitor {
+            NSEvent.removeMonitor(monitor)
         }
     }
 }

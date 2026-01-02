@@ -8,10 +8,16 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-            Text("Always Clock Settings")
-                .font(.title2)
-                .fontWeight(.bold)
-                .padding(.bottom, 10)
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Always Clock Settings")
+                    .font(.title2)
+                    .fontWeight(.bold)
+
+                Text("Global shortcut: ⌘⇧T to open settings")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.bottom, 10)
 
             GroupBox("Clock Type") {
                 VStack(alignment: .leading, spacing: 10) {

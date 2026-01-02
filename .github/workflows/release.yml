@@ -52,10 +52,14 @@ jobs:
         VERSION="${{ steps.get_version.outputs.VERSION }}"
 
         # Generate checksums for Homebrew
-        if [ -f "Always Clock.dmg" ]; then
-          SHA256=$(shasum -a 256 "Always Clock.dmg" | cut -d' ' -f1)
+        DMG_FILE="Always-Clock-v$VERSION.dmg"
+        if [ -f "$DMG_FILE" ]; then
+          SHA256=$(shasum -a 256 "$DMG_FILE" | cut -d' ' -f1)
           echo "DMG_SHA256=$SHA256" >> $GITHUB_OUTPUT
           echo "DMG SHA256: $SHA256"
+        else
+          echo "⚠️  DMG file not found: $DMG_FILE"
+          ls -la *.dmg || echo "No DMG files found"
         fi
 
         # Create release notes

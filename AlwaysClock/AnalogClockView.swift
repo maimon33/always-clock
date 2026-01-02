@@ -26,14 +26,14 @@ struct AnalogClockView: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(settings.clockColor.opacity(0.3), lineWidth: 2)
-                .frame(width: 160, height: 160)
+                .stroke(settings.clockColor.opacity(0.3), lineWidth: 2 * settings.clockSize)
+                .frame(width: 160 * settings.clockSize, height: 160 * settings.clockSize)
 
             ForEach(0..<12) { hour in
                 Rectangle()
                     .fill(settings.clockColor)
-                    .frame(width: 2, height: 10)
-                    .offset(y: -70)
+                    .frame(width: 2 * settings.clockSize, height: 10 * settings.clockSize)
+                    .offset(y: -70 * settings.clockSize)
                     .rotationEffect(.degrees(Double(hour * 30)))
             }
 
@@ -41,39 +41,39 @@ struct AnalogClockView: View {
                 if minute % 5 != 0 {
                     Rectangle()
                         .fill(settings.clockColor.opacity(0.5))
-                        .frame(width: 1, height: 5)
-                        .offset(y: -72.5)
+                        .frame(width: 1 * settings.clockSize, height: 5 * settings.clockSize)
+                        .offset(y: -72.5 * settings.clockSize)
                         .rotationEffect(.degrees(Double(minute * 6)))
                 }
             }
 
             Rectangle()
                 .fill(settings.clockColor)
-                .frame(width: 3, height: 45)
-                .offset(y: -22.5)
+                .frame(width: 3 * settings.clockSize, height: 45 * settings.clockSize)
+                .offset(y: -22.5 * settings.clockSize)
                 .rotationEffect(.degrees(hourAngle))
-                .shadow(color: .black.opacity(0.3), radius: 1, x: 1, y: 1)
+                .shadow(color: .black.opacity(0.3), radius: 1 * settings.clockSize, x: 1 * settings.clockSize, y: 1 * settings.clockSize)
 
             Rectangle()
                 .fill(settings.clockColor)
-                .frame(width: 2, height: 60)
-                .offset(y: -30)
+                .frame(width: 2 * settings.clockSize, height: 60 * settings.clockSize)
+                .offset(y: -30 * settings.clockSize)
                 .rotationEffect(.degrees(minuteAngle))
-                .shadow(color: .black.opacity(0.3), radius: 1, x: 1, y: 1)
+                .shadow(color: .black.opacity(0.3), radius: 1 * settings.clockSize, x: 1 * settings.clockSize, y: 1 * settings.clockSize)
 
             Rectangle()
                 .fill(.red)
-                .frame(width: 1, height: 70)
-                .offset(y: -35)
+                .frame(width: 1 * settings.clockSize, height: 70 * settings.clockSize)
+                .offset(y: -35 * settings.clockSize)
                 .rotationEffect(.degrees(secondAngle))
-                .shadow(color: .black.opacity(0.3), radius: 1, x: 1, y: 1)
+                .shadow(color: .black.opacity(0.3), radius: 1 * settings.clockSize, x: 1 * settings.clockSize, y: 1 * settings.clockSize)
 
             Circle()
                 .fill(settings.clockColor)
-                .frame(width: 8, height: 8)
-                .shadow(color: .black.opacity(0.3), radius: 1, x: 1, y: 1)
+                .frame(width: 8 * settings.clockSize, height: 8 * settings.clockSize)
+                .shadow(color: .black.opacity(0.3), radius: 1 * settings.clockSize, x: 1 * settings.clockSize, y: 1 * settings.clockSize)
         }
-        .padding()
+        .padding(16 * settings.clockSize)
         .animation(.easeInOut(duration: 0.1), value: secondAngle)
     }
 }

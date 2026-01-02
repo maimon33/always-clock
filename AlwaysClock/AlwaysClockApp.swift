@@ -45,8 +45,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         clockWindow?.isOpaque = false
         clockWindow?.level = .floating
         clockWindow?.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
-        clockWindow?.ignoresMouseEvents = false
-        clockWindow?.acceptsMouseMovedEvents = true
+        clockWindow?.ignoresMouseEvents = true
+        clockWindow?.acceptsMouseMovedEvents = false
         clockWindow?.isMovableByWindowBackground = false
         clockWindow?.hasShadow = false
         clockWindow?.makeKeyAndOrderFront(nil)

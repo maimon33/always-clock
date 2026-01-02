@@ -19,17 +19,17 @@ struct DigitalClockView: View {
     }
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 8 * settings.clockSize) {
             Text(timeFormatter.string(from: time))
-                .font(.system(size: 28, weight: .bold, design: .monospaced))
+                .font(.system(size: 28 * settings.clockSize, weight: .bold, design: .monospaced))
                 .foregroundColor(settings.clockColor)
-                .shadow(color: .black.opacity(0.5), radius: 2, x: 1, y: 1)
+                .shadow(color: .black.opacity(0.5), radius: 2 * settings.clockSize, x: 1 * settings.clockSize, y: 1 * settings.clockSize)
 
             Text(dateFormatter.string(from: time))
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: 14 * settings.clockSize, weight: .medium))
                 .foregroundColor(settings.clockColor.opacity(0.8))
-                .shadow(color: .black.opacity(0.3), radius: 1, x: 0.5, y: 0.5)
+                .shadow(color: .black.opacity(0.3), radius: 1 * settings.clockSize, x: 0.5 * settings.clockSize, y: 0.5 * settings.clockSize)
         }
-        .padding()
+        .padding(16 * settings.clockSize)
     }
 }

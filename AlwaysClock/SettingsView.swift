@@ -70,26 +70,105 @@ struct SettingsView: View {
                             .frame(width: 80)
                     }
 
-                    HStack {
-                        Button("Center on Screen") {
-                            if let screen = NSScreen.main {
-                                let screenRect = screen.frame
-                                settings.windowX = (screenRect.width - 200) / 2
-                                settings.windowY = (screenRect.height - 200) / 2
-                            }
-                        }
-                        .buttonStyle(.bordered)
+                    VStack(spacing: 8) {
+                        Text("Predefined Locations:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
 
-                        Spacer()
-
-                        Button("Top Right") {
-                            if let screen = NSScreen.main {
-                                let screenRect = screen.frame
-                                settings.windowX = screenRect.width - 220
-                                settings.windowY = screenRect.height - 220
+                        HStack(spacing: 8) {
+                            Button("Top Left") {
+                                if let screen = NSScreen.main {
+                                    let screenRect = screen.frame
+                                    settings.windowX = 20
+                                    settings.windowY = screenRect.height - 220
+                                }
                             }
+                            .buttonStyle(.bordered)
+                            .font(.caption)
+
+                            Button("Top Center") {
+                                if let screen = NSScreen.main {
+                                    let screenRect = screen.frame
+                                    settings.windowX = (screenRect.width - 200) / 2
+                                    settings.windowY = screenRect.height - 220
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .font(.caption)
+
+                            Button("Top Right") {
+                                if let screen = NSScreen.main {
+                                    let screenRect = screen.frame
+                                    settings.windowX = screenRect.width - 220
+                                    settings.windowY = screenRect.height - 220
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .font(.caption)
                         }
-                        .buttonStyle(.bordered)
+
+                        HStack(spacing: 8) {
+                            Button("Left Center") {
+                                if let screen = NSScreen.main {
+                                    let screenRect = screen.frame
+                                    settings.windowX = 20
+                                    settings.windowY = (screenRect.height - 200) / 2
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .font(.caption)
+
+                            Button("Center") {
+                                if let screen = NSScreen.main {
+                                    let screenRect = screen.frame
+                                    settings.windowX = (screenRect.width - 200) / 2
+                                    settings.windowY = (screenRect.height - 200) / 2
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .font(.caption)
+
+                            Button("Right Center") {
+                                if let screen = NSScreen.main {
+                                    let screenRect = screen.frame
+                                    settings.windowX = screenRect.width - 220
+                                    settings.windowY = (screenRect.height - 200) / 2
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .font(.caption)
+                        }
+
+                        HStack(spacing: 8) {
+                            Button("Bottom Left") {
+                                if let screen = NSScreen.main {
+                                    settings.windowX = 20
+                                    settings.windowY = 20
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .font(.caption)
+
+                            Button("Bottom Center") {
+                                if let screen = NSScreen.main {
+                                    let screenRect = screen.frame
+                                    settings.windowX = (screenRect.width - 200) / 2
+                                    settings.windowY = 20
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .font(.caption)
+
+                            Button("Bottom Right") {
+                                if let screen = NSScreen.main {
+                                    let screenRect = screen.frame
+                                    settings.windowX = screenRect.width - 220
+                                    settings.windowY = 20
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .font(.caption)
+                        }
                     }
                 }
                 .padding(8)

@@ -19,26 +19,5 @@ struct ClockView: View {
         .onReceive(timer) { time in
             currentTime = time
         }
-        .contextMenu {
-            Button("Switch to \(settings.isAnalogClock ? "Digital" : "Analog")") {
-                withAnimation(.easeInOut) {
-                    settings.isAnalogClock.toggle()
-                }
-            }
-
-            Divider()
-
-            Button("Settings...") {
-                if let appDelegate = NSApp.delegate as? AppDelegate {
-                    appDelegate.openSettings()
-                }
-            }
-
-            Divider()
-
-            Button("Quit Always Clock") {
-                NSApplication.shared.terminate(nil)
-            }
-        }
     }
 }

@@ -33,14 +33,15 @@ brew install --cask always-clock
 ## Features
 
 - **Always on Top**: Stays visible over all applications, including full-screen apps
+- **Click-Through**: Clock is completely non-interactive - won't interfere with your work
 - **Digital & Analog Clocks**: Switch between digital and analog clock displays
 - **Customizable Transparency**: Adjust opacity from 10% to 100%
 - **Resizable**: Scale the clock from 50% to 200% of original size
 - **Color Customization**: Choose any color for the clock display
 - **Start at Login**: Automatically launch when you log in to macOS
-- **Draggable**: Click and drag to reposition the clock anywhere on screen
+- **Positioning Controls**: Use predefined locations or numeric coordinates to place the clock
+- **Global Keyboard Shortcut**: Press ⌘⇧T to open settings from anywhere
 - **Menu Bar Integration**: Access settings and controls from the menu bar
-- **Context Menu**: Right-click on the clock for quick options
 
 ## Requirements
 
@@ -106,19 +107,17 @@ The build process automatically creates a clock icon. To regenerate:
 
 ### First Launch
 1. Run the application
-2. The clock will appear on your screen
+2. The clock will appear on your screen (completely click-through)
 3. A menu bar item (clock icon) will be added to your system menu bar
+4. You may be prompted to grant Accessibility permissions for the global shortcut
 
 ### Controls
-- **Move the Clock**: Click and drag the clock to reposition it
-- **Right-click Menu**:
-  - Switch between Digital/Analog modes
-  - Open Settings
-  - Quit the application
-- **Menu Bar**: Click the clock icon in the menu bar for quick access to settings
+- **Global Shortcut**: Press **⌘⇧T** to open settings from anywhere
+- **Menu Bar**: Click the clock icon in the menu bar for settings and controls
+- **Non-Interactive**: The clock is completely click-through and won't interfere with your work
 
 ### Settings
-Access settings via the menu bar icon or right-click menu:
+Access settings via the menu bar icon or global shortcut (⌘⇧T):
 - **Clock Type**: Choose between Digital or Analog display
 - **Transparency**: Adjust from 10% (very transparent) to 100% (opaque)
 - **Size**: Scale from 50% to 200% of original size

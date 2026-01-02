@@ -34,5 +34,7 @@
 	<string>NSApplication</string>
 	<key>SMLoginItemSetEnabledDeprecated</key>
 	<true/>
+	<key>NSAccessibilityUsageDescription</key>
+	<string>Always Clock needs accessibility access to provide the global keyboard shortcut (⌘⇧T) to open settings when the clock is not clickable.</string>
 </dict>
 </plist>

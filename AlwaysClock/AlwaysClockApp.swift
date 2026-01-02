@@ -122,11 +122,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func setupGlobalKeyboardShortcut() {
-        globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
-            // Check for Cmd+Shift+T shortcut
-            if event.modifierFlags.contains([.command, .shift]) && event.keyCode == 17 { // T key
-                DispatchQueue.main.async {
-                    self.openSettings()
+        // Check for accessibility permissions first
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
+        let accessEnabled = AXIsProcessTrustedWithOptions(options as CFDictionary)
+
+        if accessEnabled {
+            globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
+                // Check for Cmd+Shift+T shortcut
+                if event.modifierFlags.contains([.command, .shift]) && event.keyCode == 17 { // T key
+                    DispatchQueue.main.async {
+                        self.openSettings()
+                    }
+                }
+            }
+        } else {
+            // Show alert about accessibility permission
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                let alert = NSAlert()
+                alert.messageText = "Accessibility Permission Required"
+                alert.informativeText = "To use the global keyboard shortcut (⌘⇧T), please grant Always Clock accessibility access in System Settings > Privacy & Security > Accessibility."
+                alert.addButton(withTitle: "Open System Settings")
+                alert.addButton(withTitle: "Skip")
+
+                if alert.runModal() == .alertFirstButtonReturn {
+                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
                 }
             }
         }

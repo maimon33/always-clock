@@ -1,8 +1,8 @@
 cask "always-clock" do
-  version "1.0"  # This will be updated automatically
-  sha256 "PLACEHOLDER_SHA256"  # This will be updated with actual SHA256
+  version "1.0"
+  sha256 "85086e4457b66d7350a7a47918f2e3e4fe0dcfd59ec822e5279a860688430181"
 
-  url "https://github.com/maimon33/always-clock/releases/download/v#{version}/Always%20Clock.dmg"
+  url "https://github.com/maimon33/always-clock/releases/download/v#{version}/Always-Clock-v#{version}.dmg"
   name "Always Clock"
   desc "Always-on-top transparent clock for macOS"
   homepage "https://github.com/maimon33/always-clock"

@@ -51,6 +51,13 @@ jobs:
         # Rename files with version
         VERSION="${{ steps.get_version.outputs.VERSION }}"
 
+        # Generate checksums for Homebrew
+        if [ -f "Always Clock.dmg" ]; then
+          SHA256=$(shasum -a 256 "Always Clock.dmg" | cut -d' ' -f1)
+          echo "DMG_SHA256=$SHA256" >> $GITHUB_OUTPUT
+          echo "DMG SHA256: $SHA256"
+        fi
+
         # Create release notes
         cat > ../RELEASE_NOTES.md << EOF
         # Always Clock v$VERSION

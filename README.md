@@ -7,7 +7,16 @@ A simple and elegant always-on-top clock for macOS that stays visible over all w
 
 ## 🚀 **Get the App (No Xcode Required!)**
 
-### Option 1: Download from GitHub Actions (Recommended)
+### Option 1: Homebrew (Coming Soon)
+```bash
+brew install --cask always-clock
+```
+
+### Option 2: Download from Releases (Recommended)
+- Check [**Releases**](../../releases) for stable versions with permanent download links
+- Download formats: DMG, PKG, or ZIP
+
+### Option 3: Download from GitHub Actions
 1. Go to [**Actions**](../../actions) tab above
 2. Click latest **"Build Always Clock App"** workflow run
 3. Scroll to **Artifacts** and download your preferred format:
@@ -16,10 +25,7 @@ A simple and elegant always-on-top clock for macOS that stays visible over all w
    - `always-clock-zip` - ZIP archive
    - `always-clock-app` - Direct app bundle
 
-### Option 2: Download from Releases
-- Check [**Releases**](../../releases) for stable versions with permanent download links
-
-### Option 3: Trigger Your Own Build
+### Option 4: Trigger Your Own Build
 1. Fork this repository
 2. Go to **Actions** → **"Build Always Clock App"** → **"Run workflow"**
 3. Wait 5 minutes and download your fresh build!

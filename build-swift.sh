@@ -6,7 +6,16 @@ set -e
 
 APP_NAME="Always Clock"
 BUNDLE_ID="com.alwaysclock.app"
-VERSION="1.0"
+# Get version from git tag or environment variable
+if [ -n "$GITHUB_REF" ] && [[ $GITHUB_REF == refs/tags/* ]]; then
+    VERSION=${GITHUB_REF#refs/tags/v}
+elif [ -n "$VERSION" ]; then
+    # Use environment variable if set
+    VERSION="$VERSION"
+else
+    # Fallback to git tag or default
+    VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "1.0")
+fi
 DIST_DIR="./dist"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 SWIFT_FILES="AlwaysClock/AlwaysClockApp.swift AlwaysClock/ContentView.swift AlwaysClock/ClockView.swift AlwaysClock/DigitalClockView.swift AlwaysClock/AnalogClockView.swift AlwaysClock/SettingsView.swift"

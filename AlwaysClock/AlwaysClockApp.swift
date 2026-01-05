@@ -202,6 +202,12 @@ class ClockSettings: ObservableObject {
         }
     }
 
+    @Published var showSeconds: Bool {
+        didSet {
+            UserDefaults.standard.set(showSeconds, forKey: "showSeconds")
+        }
+    }
+
     init() {
         self.transparency = UserDefaults.standard.double(forKey: "transparency") == 0 ? 0.8 : UserDefaults.standard.double(forKey: "transparency")
         self.clockSize = UserDefaults.standard.double(forKey: "clockSize") == 0 ? 1.0 : UserDefaults.standard.double(forKey: "clockSize")
@@ -219,6 +225,8 @@ class ClockSettings: ObservableObject {
         } else {
             self.clockColor = .white
         }
+
+        self.showSeconds = UserDefaults.standard.bool(forKey: "showSeconds")
     }
 
     private func updateWindowPosition() {

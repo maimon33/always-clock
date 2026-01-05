@@ -26,6 +26,10 @@ struct SettingsView: View {
                         Text("Analog").tag(true)
                     }
                     .pickerStyle(.segmented)
+
+                    if !settings.isAnalogClock {
+                        Toggle("Show Seconds", isOn: $settings.showSeconds)
+                    }
                 }
                 .padding(8)
             }
@@ -195,6 +199,7 @@ struct SettingsView: View {
                             settings.clockColor = .white
                             settings.windowX = 100
                             settings.windowY = 100
+                            settings.showSeconds = false
                         }
                         .buttonStyle(.bordered)
 

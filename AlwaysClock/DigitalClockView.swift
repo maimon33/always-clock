@@ -6,7 +6,7 @@ struct DigitalClockView: View {
 
     private var timeFormatter: DateFormatter {
         let formatter = DateFormatter()
-        formatter.timeStyle = .medium
+        formatter.timeStyle = settings.showSeconds ? .medium : .short
         formatter.dateStyle = .none
         return formatter
     }

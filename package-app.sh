@@ -1,94 +1,79 @@
 #!/bin/bash
 
 # Package Always Clock as a distributable macOS app
+# Set SIGN_IDENTITY ("Developer ID Application: Name (TEAMID)") and APPLE_TEAM_ID to sign for distribution.
 
 set -e
 
+cd "$(dirname "$0")"
+source ./version.sh
+
 APP_NAME="Always Clock"
-BUNDLE_ID="com.alwaysclock.app"
-# Get version from git tag or environment variable
-if [ -n "$GITHUB_REF" ] && [[ $GITHUB_REF == refs/tags/* ]]; then
-    VERSION=${GITHUB_REF#refs/tags/v}
-elif [ -n "$VERSION" ]; then
-    # Use environment variable if set
-    VERSION="$VERSION"
-else
-    # Fallback to git tag or default
-    VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "1.0")
-fi
 BUILD_DIR="./build"
 DIST_DIR="./dist"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 
-echo "📦 Packaging Always Clock for distribution..."
+echo "📦 Packaging Always Clock $VERSION ($BUILD_NUMBER)..."
 
-# Clean previous builds
-rm -rf "$BUILD_DIR"
-rm -rf "$DIST_DIR"
+rm -rf "$BUILD_DIR" "$DIST_DIR"
 mkdir -p "$DIST_DIR"
 
-# Check if we have full Xcode
 DEVELOPER_DIR=$(xcode-select -p)
 if [[ "$DEVELOPER_DIR" == *"CommandLineTools"* ]]; then
     echo "❌ Error: Full Xcode is required (not just command line tools)."
-    echo "Please install Xcode from the Mac App Store and run:"
-    echo "sudo xcode-select -s /Applications/Xcode.app/Contents/Developer"
+    echo "Please install Xcode and run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer"
     exit 1
+fi
+
+SIGNING_ARGS=()
+if [ -n "$SIGN_IDENTITY" ]; then
+    : "${APPLE_TEAM_ID:?APPLE_TEAM_ID must be set when SIGN_IDENTITY is set}"
+    SIGNING_ARGS=(
+        CODE_SIGN_STYLE=Manual
+        "CODE_SIGN_IDENTITY=$SIGN_IDENTITY"
+        "DEVELOPMENT_TEAM=$APPLE_TEAM_ID"
+        "OTHER_CODE_SIGN_FLAGS=--timestamp"
+    )
+    echo "✍️  Signing with: $SIGN_IDENTITY"
 fi
 
 echo "🔨 Building release version..."
 
-# Build for release
 xcodebuild \
     -project AlwaysClock.xcodeproj \
     -scheme AlwaysClock \
     -configuration Release \
     -derivedDataPath "$BUILD_DIR" \
     -archivePath "$BUILD_DIR/AlwaysClock.xcarchive" \
+    "MARKETING_VERSION=$VERSION" \
+    "CURRENT_PROJECT_VERSION=$BUILD_NUMBER" \
+    "${SIGNING_ARGS[@]}" \
     archive
 
 echo "📋 Extracting app bundle..."
 
-# Find the actual app name in the archive
-if [ -d "$BUILD_DIR/AlwaysClock.xcarchive/Products/Applications/AlwaysClock.app" ]; then
-    APP_SOURCE="$BUILD_DIR/AlwaysClock.xcarchive/Products/Applications/AlwaysClock.app"
-elif [ -d "$BUILD_DIR/AlwaysClock.xcarchive/Products/Applications/Always Clock.app" ]; then
-    APP_SOURCE="$BUILD_DIR/AlwaysClock.xcarchive/Products/Applications/Always Clock.app"
-else
-    echo "❌ Could not find app in archive. Available files:"
-    ls -la "$BUILD_DIR/AlwaysClock.xcarchive/Products/Applications/" || echo "Applications directory not found"
+ARCHIVED_APP="$BUILD_DIR/AlwaysClock.xcarchive/Products/Applications/AlwaysClock.app"
+if [ ! -d "$ARCHIVED_APP" ]; then
+    echo "❌ Could not find app in archive:"
+    ls -la "$BUILD_DIR/AlwaysClock.xcarchive/Products/Applications/" || true
     exit 1
 fi
 
-# Copy the app bundle to dist
-cp -R "$APP_SOURCE" "$APP_BUNDLE"
+cp -R "$ARCHIVED_APP" "$APP_BUNDLE"
 
 echo "🔍 Verifying app bundle..."
 
-# Verify the app bundle structure
-if [ ! -d "$APP_BUNDLE" ]; then
-    echo "❌ App bundle not found at expected location"
-    exit 1
-fi
-
-# Check if app is executable
 if [ ! -x "$APP_BUNDLE/Contents/MacOS/AlwaysClock" ]; then
     echo "❌ App executable not found or not executable"
     exit 1
 fi
 
-echo "📊 App bundle information:"
-echo "  Bundle ID: $(plutil -p "$APP_BUNDLE/Contents/Info.plist" | grep CFBundleIdentifier | cut -d'"' -f4)"
-echo "  Version: $(plutil -p "$APP_BUNDLE/Contents/Info.plist" | grep CFBundleShortVersionString | cut -d'"' -f4)"
-echo "  Size: $(du -h "$APP_BUNDLE" | tail -1 | cut -f1)"
+if [ -n "$SIGN_IDENTITY" ]; then
+    codesign --verify --strict --deep --verbose=2 "$APP_BUNDLE"
+fi
 
-echo "✅ Successfully packaged: $APP_BUNDLE"
-echo ""
-echo "To test the app:"
-echo "  open '$APP_BUNDLE'"
-echo ""
-echo "To install the app:"
-echo "  cp -R '$APP_BUNDLE' /Applications/"
-echo ""
-echo "To create a DMG installer, run:"
-echo "  ./create-dmg.sh"
+echo "📊 App bundle information:"
+echo "  Bundle ID: $(plutil -extract CFBundleIdentifier raw "$APP_BUNDLE/Contents/Info.plist")"
+echo "  Version: $(plutil -extract CFBundleShortVersionString raw "$APP_BUNDLE/Contents/Info.plist") ($(plutil -extract CFBundleVersion raw "$APP_BUNDLE/Contents/Info.plist"))"
+
+echo "✅ Packaged: $APP_BUNDLE"

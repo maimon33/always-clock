@@ -16,7 +16,7 @@ The Always Clock project is **complete and ready to build** with the following c
 - `./create-dmg.sh` - DMG installer creation
 - `./create-pkg.sh` - PKG installer creation
 - `./create-icon.sh` - App icon generation
-- `./codesign.sh` - Code signing support
+- `./notarize.sh` - Notarization and stapling (used by `distribute.sh` when credentials are set)
 
 ### ✅ **Git Configuration**
 - `.gitignore` properly configured to exclude build artifacts

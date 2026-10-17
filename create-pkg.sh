@@ -1,116 +1,87 @@
 #!/bin/bash
 
 # Create a PKG installer for Always Clock
+# Set INSTALLER_IDENTITY ("Developer ID Installer: Name (TEAMID)") to sign the package.
 
 set -e
 
+cd "$(dirname "$0")"
+source ./version.sh
+
 APP_NAME="Always Clock"
+EXECUTABLE_NAME="AlwaysClock"
 BUNDLE_ID="com.alwaysclock.app"
-# Get version from git tag or environment variable
-if [ -n "$GITHUB_REF" ] && [[ $GITHUB_REF == refs/tags/* ]]; then
-    VERSION=${GITHUB_REF#refs/tags/v}
-elif [ -n "$VERSION" ]; then
-    # Use environment variable if set
-    VERSION="$VERSION"
-else
-    # Fallback to git tag or default
-    VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "1.0")
-fi
 DIST_DIR="./dist"
 PKG_DIR="$DIST_DIR/pkg"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 PKG_NAME="Always-Clock-v$VERSION.pkg"
 FINAL_PKG="$DIST_DIR/$PKG_NAME"
+UNSIGNED_PKG="$DIST_DIR/$PKG_NAME.unsigned"
 
-echo "📦 Creating PKG installer for Always Clock..."
+echo "📦 Creating PKG installer for Always Clock $VERSION..."
 
-# Check if app bundle exists
 if [ ! -d "$APP_BUNDLE" ]; then
     echo "❌ App bundle not found. Run ./package-app.sh first"
     exit 1
 fi
 
-# Clean up previous build
 rm -rf "$PKG_DIR"
-rm -f "$FINAL_PKG"
+rm -f "$FINAL_PKG" "$UNSIGNED_PKG"
 mkdir -p "$PKG_DIR/Applications"
-
-# Copy app to pkg directory
 cp -R "$APP_BUNDLE" "$PKG_DIR/Applications/"
 
 echo "📝 Creating installer scripts..."
 
-# Create preinstall script (runs before installation)
-cat > "$PKG_DIR/preinstall" << 'EOF'
+cat > "$PKG_DIR/preinstall" << EOF
 #!/bin/bash
-
-# Quit the app if it's running
-APP_NAME="Always Clock"
-if pgrep -f "$APP_NAME" > /dev/null; then
-    echo "Quitting $APP_NAME..."
-    killall "$APP_NAME" 2>/dev/null || true
-    sleep 1
-fi
-
+# Quit a running copy so its bundle can be replaced
+pkill -x "$EXECUTABLE_NAME" 2>/dev/null || true
 exit 0
 EOF
 
-# Create postinstall script (runs after installation)
 cat > "$PKG_DIR/postinstall" << 'EOF'
 #!/bin/bash
-
-APP_NAME="Always Clock"
-APP_PATH="/Applications/$APP_NAME.app"
-
-echo "Setting up Always Clock..."
-
-# Set proper permissions
-if [ -d "$APP_PATH" ]; then
-    chmod -R 755 "$APP_PATH"
-    chown -R root:wheel "$APP_PATH"
-
-    echo "Always Clock installed successfully!"
-    echo "You can find it in Applications or launch it from Spotlight."
-else
-    echo "Error: App not found at expected location"
+# Installer runs as root; make sure the app is readable by every user
+APP_PATH="/Applications/Always Clock.app"
+if [ ! -d "$APP_PATH" ]; then
+    echo "Always Clock was not found at $APP_PATH" >&2
     exit 1
 fi
-
+chmod -R 755 "$APP_PATH"
+chown -R root:wheel "$APP_PATH"
 exit 0
 EOF
 
-# Make scripts executable
-chmod +x "$PKG_DIR/preinstall"
-chmod +x "$PKG_DIR/postinstall"
+chmod +x "$PKG_DIR/preinstall" "$PKG_DIR/postinstall"
+
+echo "📋 Preparing component plist (install in /Applications, never relocate)..."
+
+COMPONENT_PLIST="$DIST_DIR/component.plist"
+pkgbuild --analyze --root "$PKG_DIR" "$COMPONENT_PLIST" > /dev/null
+/usr/libexec/PlistBuddy -c "Set :0:BundleIsRelocatable false" "$COMPONENT_PLIST"
 
 echo "🏗️  Building PKG installer..."
 
-# Create component package
 pkgbuild \
     --root "$PKG_DIR" \
+    --component-plist "$COMPONENT_PLIST" \
     --identifier "$BUNDLE_ID.installer" \
     --version "$VERSION" \
     --install-location "/" \
     --scripts "$PKG_DIR" \
     --ownership recommended \
-    "$FINAL_PKG"
+    "$UNSIGNED_PKG"
 
-# Clean up temporary files
-rm -rf "$PKG_DIR"
+if [ -n "$INSTALLER_IDENTITY" ]; then
+    echo "✍️  Signing PKG with: $INSTALLER_IDENTITY"
+    productsign --sign "$INSTALLER_IDENTITY" --timestamp "$UNSIGNED_PKG" "$FINAL_PKG"
+    rm -f "$UNSIGNED_PKG"
+    pkgutil --check-signature "$FINAL_PKG"
+else
+    mv "$UNSIGNED_PKG" "$FINAL_PKG"
+fi
 
-echo "✅ PKG installer created successfully!"
-echo ""
-echo "📄 PKG Information:"
-echo "  File: $FINAL_PKG"
-echo "  Size: $(du -h "$FINAL_PKG" | cut -f1)"
-echo "  Identifier: $BUNDLE_ID.installer"
-echo "  Version: $VERSION"
-echo ""
-echo "🔍 To inspect the PKG contents:"
-echo "  pkgutil --payload-files '$FINAL_PKG'"
-echo ""
-echo "🚀 To install:"
-echo "  Double-click the PKG file"
-echo "  Or run: sudo installer -pkg '$FINAL_PKG' -target /"
-echo ""
-echo "⚠️  Note: PKG installers may require admin privileges"
+rm -rf "$PKG_DIR" "$COMPONENT_PLIST"
+
+echo "✅ PKG installer created: $FINAL_PKG ($(du -h "$FINAL_PKG" | cut -f1))"
+echo "   Install: sudo installer -pkg '$FINAL_PKG' -target /"

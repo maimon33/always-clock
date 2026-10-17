@@ -3,6 +3,9 @@ name: Auto tag main
 on:
   push:
     branches: [ main ]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
 
 concurrency:
   group: auto-tag

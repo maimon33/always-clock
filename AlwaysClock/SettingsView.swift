@@ -69,8 +69,12 @@ struct SettingsView: View {
 
             GroupBox("Frame") {
                 VStack(alignment: .leading, spacing: 12) {
+                    Toggle("Fit frame to clock", isOn: $settings.fitFrameToContent)
+                    sliderRow("Margin (px)", value: $settings.frameMargin, in: 0...60, step: 1)
                     sliderRow("Width", value: $settings.frameWidth, in: 100...600, step: 10)
+                        .disabled(settings.fitFrameToContent)
                     sliderRow("Height", value: $settings.frameHeight, in: 100...600, step: 10)
+                        .disabled(settings.fitFrameToContent)
                     sliderRow("Frame transparency", value: $settings.frameOpacity, in: 0...1, step: 0.05)
                     sliderRow("Corner radius", value: $settings.frameCornerRadius, in: 0...60, step: 1)
 
@@ -179,6 +183,8 @@ struct SettingsView: View {
                             settings.showSeconds = false
                             settings.showDate = true
                             settings.font = .monospaced
+                            settings.fitFrameToContent = true
+                            settings.frameMargin = 8
                             settings.frameWidth = 200
                             settings.frameHeight = 200
                             settings.frameOpacity = 0.3

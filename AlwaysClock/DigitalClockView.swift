@@ -29,7 +29,6 @@ struct DigitalClockView: View {
                     .textEffects(settings)
             }
         }
-        .padding(16 * settings.clockSize)
     }
 }
 

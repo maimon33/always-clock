@@ -29,6 +29,11 @@ struct SettingsView: View {
 
                     if !settings.isAnalogClock {
                         Toggle("Show Seconds", isOn: $settings.showSeconds)
+                        Toggle("Show Date", isOn: $settings.showDate)
+
+                        Picker("Font", selection: $settings.font) {
+                            ForEach(ClockFont.allCases, id: \.self) { Text($0.label).tag($0) }
+                        }
                     }
                 }
                 .padding(8)
@@ -37,7 +42,7 @@ struct SettingsView: View {
             GroupBox("Appearance") {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
-                        Text("Transparency:")
+                        Text("Text transparency:")
                         Spacer()
                         Text("\(Int(settings.transparency * 100))%")
                             .foregroundColor(.secondary)
@@ -45,7 +50,7 @@ struct SettingsView: View {
                     Slider(value: $settings.transparency, in: 0.1...1.0, step: 0.1)
 
                     HStack {
-                        Text("Size:")
+                        Text("Text size:")
                         Spacer()
                         Text("\(Int(settings.clockSize * 100))%")
                             .foregroundColor(.secondary)
@@ -53,9 +58,56 @@ struct SettingsView: View {
                     Slider(value: $settings.clockSize, in: 0.5...2.0, step: 0.1)
 
                     HStack {
-                        Text("Color:")
+                        Text("Text color:")
                         Spacer()
                         ColorPicker("", selection: $settings.clockColor)
+                            .frame(width: 50)
+                    }
+                }
+                .padding(8)
+            }
+
+            GroupBox("Frame") {
+                VStack(alignment: .leading, spacing: 12) {
+                    sliderRow("Width", value: $settings.frameWidth, in: 100...600, step: 10)
+                    sliderRow("Height", value: $settings.frameHeight, in: 100...600, step: 10)
+                    sliderRow("Frame transparency", value: $settings.frameOpacity, in: 0...1, step: 0.05)
+                    sliderRow("Corner radius", value: $settings.frameCornerRadius, in: 0...60, step: 1)
+
+                    HStack {
+                        Text("Frame color:")
+                        Spacer()
+                        ColorPicker("", selection: $settings.frameColor)
+                            .frame(width: 50)
+                    }
+                }
+                .padding(8)
+            }
+
+            GroupBox("Text Effects") {
+                VStack(alignment: .leading, spacing: 12) {
+                    sliderRow("Shadow blur", value: $settings.shadowRadius, in: 0...10, step: 0.5)
+                    sliderRow("Shadow offset", value: $settings.shadowOffset, in: 0...10, step: 0.5)
+                    HStack {
+                        Text("Shadow color:")
+                        Spacer()
+                        ColorPicker("", selection: $settings.shadowColor)
+                            .frame(width: 50)
+                    }
+
+                    sliderRow("Outline width", value: $settings.outlineWidth, in: 0...5, step: 0.5)
+                    HStack {
+                        Text("Outline color:")
+                        Spacer()
+                        ColorPicker("", selection: $settings.outlineColor)
+                            .frame(width: 50)
+                    }
+
+                    sliderRow("Glow radius", value: $settings.glowRadius, in: 0...30, step: 1)
+                    HStack {
+                        Text("Glow color:")
+                        Spacer()
+                        ColorPicker("", selection: $settings.glowColor)
                             .frame(width: 50)
                     }
                 }
@@ -125,6 +177,20 @@ struct SettingsView: View {
                             settings.windowX = 100
                             settings.windowY = 100
                             settings.showSeconds = false
+                            settings.showDate = true
+                            settings.font = .monospaced
+                            settings.frameWidth = 200
+                            settings.frameHeight = 200
+                            settings.frameOpacity = 0.3
+                            settings.frameCornerRadius = 12
+                            settings.frameColor = .black
+                            settings.shadowColor = .black.opacity(0.5)
+                            settings.shadowRadius = 2
+                            settings.shadowOffset = 1
+                            settings.outlineColor = .black
+                            settings.outlineWidth = 0
+                            settings.glowColor = .white
+                            settings.glowRadius = 0
                         }
                         .buttonStyle(.bordered)
 
@@ -147,6 +213,18 @@ struct SettingsView: View {
         .frame(width: 400, height: 500)
         .onAppear {
             checkLoginItemStatus()
+        }
+    }
+
+    private func sliderRow(_ title: String, value: Binding<Double>, in range: ClosedRange<Double>, step: Double) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("\(title):")
+                Spacer()
+                Text(String(format: "%g", value.wrappedValue))
+                    .foregroundColor(.secondary)
+            }
+            Slider(value: value, in: range, step: step)
         }
     }
 

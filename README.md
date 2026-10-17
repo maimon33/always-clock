@@ -9,7 +9,7 @@ A simple and elegant always-on-top clock for macOS that stays visible over all w
 
 ### Option 1: Homebrew
 ```bash
-brew install --cask always-clock
+brew tap maimon33/always-clock && brew install --cask always-clock
 ```
 The cask is regenerated automatically on each release.
 

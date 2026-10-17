@@ -4,13 +4,13 @@ on:
   push:
     tags:
       - 'v*'  # v1.4 -> version 1.4
-  workflow_dispatch:  # manual run builds unsigned artifacts; no release is published
+  workflow_dispatch:  # manual run builds artifacts; publishes only from a tag
 
 jobs:
   release:
     runs-on: macos-latest
     permissions:
-      contents: write  # create the release and commit the Homebrew cask
+      contents: write  # create the release
 
     steps:
     - name: Checkout code
@@ -23,8 +23,8 @@ jobs:
       with:
         xcode-version: latest-stable
 
-    - name: Require signing secrets for tag releases
-      if: startsWith(github.ref, 'refs/tags/v')
+    - name: Detect signing secrets
+      id: signing
       env:
         MACOS_CERT_P12_BASE64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
         MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
@@ -35,18 +35,22 @@ jobs:
         ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
         ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       run: |
-        missing=0
+        signed=true
         for var in MACOS_CERT_P12_BASE64 MACOS_CERT_PASSWORD APPLE_TEAM_ID APPLE_SIGN_IDENTITY \
                    APPLE_INSTALLER_IDENTITY ASC_KEY_P8_BASE64 ASC_KEY_ID ASC_ISSUER_ID; do
           if [ -z "${!var}" ]; then
-            echo "::error::Secret $var is not set; a release must be signed and notarized"
-            missing=1
+            signed=false
           fi
         done
-        exit $missing
+        if [ "$signed" = true ]; then
+          echo "Signing secrets found: building a signed and notarized release"
+        else
+          echo "::warning::Signing secrets not set: building unsigned artifacts"
+        fi
+        echo "signed=$signed" >> "$GITHUB_OUTPUT"
 
     - name: Import signing certificate and notary key
-      if: startsWith(github.ref, 'refs/tags/v')
+      if: steps.signing.outputs.signed == 'true'
       env:
         MACOS_CERT_P12_BASE64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
         MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
@@ -79,9 +83,10 @@ jobs:
         APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
         APPLE_INSTALLER_IDENTITY: ${{ secrets.APPLE_INSTALLER_IDENTITY }}
+        SIGNED: ${{ steps.signing.outputs.signed }}
       run: |
         chmod +x *.sh
-        if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+        if [ "$SIGNED" = true ]; then
           export SIGN_IDENTITY="$APPLE_SIGN_IDENTITY"
           export INSTALLER_IDENTITY="$APPLE_INSTALLER_IDENTITY"
           export APPLE_TEAM_ID
@@ -95,13 +100,20 @@ jobs:
         echo "version=$VERSION" >> "$GITHUB_OUTPUT"
         echo "dmg_sha256=$(shasum -a 256 "dist/Always-Clock-v$VERSION.dmg" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
-    - name: Update Homebrew cask
+    - name: Update Homebrew tap
       if: startsWith(github.ref, 'refs/tags/v')
       env:
+        TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         VERSION: ${{ steps.version.outputs.version }}
         SHA256: ${{ steps.version.outputs.dmg_sha256 }}
       run: |
-        cat > homebrew/always-clock.rb << EOF
+        if [ -z "$TAP_TOKEN" ]; then
+          echo "::warning::HOMEBREW_TAP_TOKEN not set: skipping tap update"
+          exit 0
+        fi
+        git clone --quiet "https://x-access-token:$TAP_TOKEN@github.com/maimon33/homebrew-always-clock.git" tap
+        mkdir -p tap/Casks
+        cat > tap/Casks/always-clock.rb << EOF
         cask "always-clock" do
           version "$VERSION"
           sha256 "$SHA256"
@@ -115,32 +127,51 @@ jobs:
 
           app "Always Clock.app"
 
+          caveats <<~EOS
+            If macOS says Always Clock can't be opened, run:
+              xattr -dr com.apple.quarantine "/Applications/Always Clock.app"
+          EOS
+
           zap trash: [
             "~/Library/Preferences/com.alwaysclock.app.plist",
           ]
         end
         EOF
+        cd tap
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-        git add homebrew/always-clock.rb
-        git commit -m "Update Homebrew cask to $VERSION" || echo "Cask already up to date"
-        git push origin HEAD:main || echo "::warning::Could not push cask update to main"
+        git add Casks/always-clock.rb
+        git commit -m "Update Always Clock cask to $VERSION" || { echo "Cask already up to date"; exit 0; }
+        git push origin HEAD:main
 
     - name: Write release notes
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+        SIGNED: ${{ steps.signing.outputs.signed }}
       run: |
-        cat > RELEASE_NOTES.md << EOF
-        # Always Clock v${{ steps.version.outputs.version }}
-
-        ## Installation
-        - **DMG** (recommended): open it and drag Always Clock to Applications
-        - **PKG**: double-click and follow the installer
-        - **ZIP**: extract and drag Always Clock to Applications
-        - **Homebrew**: \`brew install --cask always-clock\`
-
-        ## Usage
-        - The clock is click-through; open **Settings** (⌘⇧T or the menu bar icon) to drag it or pick a preset position
-        - Requires macOS 13.0 (Ventura) or later
-        EOF
+        {
+          echo "# Always Clock v$VERSION"
+          echo ""
+          echo "## Installation"
+          echo "- **DMG** (recommended): open it and drag Always Clock to Applications"
+          echo "- **PKG**: double-click and follow the installer"
+          echo "- **ZIP**: extract and drag Always Clock to Applications"
+          echo "- **Homebrew**: \`brew tap maimon33/always-clock && brew install --cask always-clock\`"
+          echo ""
+          if [ "$SIGNED" != true ]; then
+            echo "## First launch (unsigned build)"
+            echo "This build is not signed by Apple, so macOS blocks it the first time."
+            echo "Right-click Always Clock → **Open**, or run:"
+            echo ""
+            echo '```bash'
+            echo 'xattr -dr com.apple.quarantine "/Applications/Always Clock.app"'
+            echo '```'
+            echo ""
+          fi
+          echo "## Usage"
+          echo "- The clock is click-through; open **Settings** (⌘⇧T or the menu bar icon) to drag it or pick a preset position"
+          echo "- Requires macOS 13.0 (Ventura) or later"
+        } > RELEASE_NOTES.md
 
     - name: Publish release
       if: startsWith(github.ref, 'refs/tags/v')
@@ -165,5 +196,5 @@ jobs:
         retention-days: 30
 
     - name: Clean up keychain
-      if: always()
+      if: always() && steps.signing.outputs.signed == 'true'
       run: security delete-keychain "$RUNNER_TEMP/release.keychain-db" || true

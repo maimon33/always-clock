@@ -13,7 +13,7 @@
 - `create-dmg.sh`, `create-pkg.sh`: installers; sign when `SIGN_IDENTITY` / `INSTALLER_IDENTITY` are set.
 - `notarize.sh`: notarytool submit + staple for `.app`, `.dmg`, `.pkg` (needs `ASC_KEY_PATH`, `ASC_KEY_ID`, `ASC_ISSUER_ID`).
 - `distribute.sh`: full pipeline; notarizes only when `ASC_KEY_PATH` is set.
-- `.github/workflows/release.yml`: on `v*` tags, requires signing secrets, imports the cert, runs `distribute.sh`, regenerates `homebrew/always-clock.rb`, publishes the release.
+- `.github/workflows/release.yml`: on `v*` tags, signs and notarizes only if the signing secrets exist (otherwise unsigned), runs `distribute.sh`, updates the Homebrew tap, publishes the release.
 - `.github/workflows/build-app.yml`: unsigned build of `distribute.sh` on push/PR.
 
 ## Active conventions
@@ -27,8 +27,9 @@
 - Mac App Store is not pursued yet; it would need App Sandbox (currently off) and a privacy manifest.
 
 ## Constraints that would surprise a cold reader
-- Release builds need repository secrets: `MACOS_CERT_P12_BASE64`, `MACOS_CERT_PASSWORD`, `APPLE_TEAM_ID`, `APPLE_SIGN_IDENTITY`, `APPLE_INSTALLER_IDENTITY`, `ASC_KEY_P8_BASE64`, `ASC_KEY_ID`, `ASC_ISSUER_ID`. Tag builds fail without them.
-- `homebrew/always-clock.rb` is rewritten by CI on every tag; it is stale until the first tagged release.
+- Signing is optional: without the secrets, a tag still publishes an unsigned release. Signed releases need repository secrets: `MACOS_CERT_P12_BASE64`, `MACOS_CERT_PASSWORD`, `APPLE_TEAM_ID`, `APPLE_SIGN_IDENTITY`, `APPLE_INSTALLER_IDENTITY`, `ASC_KEY_P8_BASE64`, `ASC_KEY_ID`, `ASC_ISSUER_ID`. 
+- Homebrew cask lives in the tap repo `maimon33/homebrew-always-clock`, not in this repo. CI updates it on each tag and needs secret `HOMEBREW_TAP_TOKEN`.
+- Without the signing secrets, tag releases publish unsigned DMG/PKG/ZIP with first-launch instructions in the release notes.
 - Deployment target is macOS 13.0.
 - Local builds need full Xcode; Command Line Tools cannot run `xcodebuild`.
 
@@ -41,5 +42,10 @@
 - Added `notarize.sh`; signing and notarization are wired into `package-app.sh`, `create-dmg.sh`, `create-pkg.sh` and `distribute.sh`.
 - Rewrote `release.yml` (secret-gated tag releases, cask regeneration) and `build-app.yml` (uses `distribute.sh`).
 - Removed `codesign.sh` (superseded) and `build-swift.sh` (hardcoded x86_64 and documented as failing).
-- Open: Developer ID + App Store Connect secrets must be added to the repo. Not yet run end-to-end; no signing identity or notary access was available locally.
-- Open: `homebrew/always-clock.rb` still shows the v1.0-era values until the next tag.
+- Open: Developer ID + App Store Connect secrets (see RELEASE_SETUP.md). Signing not run end-to-end.
+- Open: `HOMEBREW_TAP_TOKEN` secret (fine-grained PAT, contents write on the tap repo).
+
+### 2026-10-17 — Unsigned release path and Homebrew tap
+- Release workflow publishes unsigned when signing secrets are absent; release notes include first-launch instructions.
+- Cask moved to tap repo `maimon33/homebrew-always-clock` (v1.3 cask created); `homebrew/always-clock.rb` removed from this repo.
+- Added `set-release-secrets.sh` and `RELEASE_SETUP.md` for uploading Apple secrets.

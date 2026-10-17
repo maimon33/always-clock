@@ -1,0 +1,42 @@
+name: Auto tag main
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+
+concurrency:
+  group: auto-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # push the tag
+      actions: write   # start release.yml for the tag
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Create next version tag
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        if [ -n "$(git tag --points-at HEAD)" ]; then
+          echo "HEAD is already tagged, skipping"
+          exit 0
+        fi
+
+        LAST=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || echo v0.0)
+        NEXT="${LAST%.*}.$(( ${LAST##*.} + 1 ))"
+
+        git tag "$NEXT"
+        git push origin "$NEXT"
+        gh workflow run release.yml --ref "$NEXT"
+        echo "Tagged $NEXT and started release" >> "$GITHUB_STEP_SUMMARY"

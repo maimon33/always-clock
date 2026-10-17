@@ -5,15 +5,13 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            Color.clear
-                .background(.ultraThinMaterial)
-                .opacity(settings.transparency * 0.3)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+            RoundedRectangle(cornerRadius: settings.frameCornerRadius)
+                .fill(settings.frameColor)
+                .opacity(settings.frameOpacity)
 
             ClockView()
                 .environmentObject(settings)
+                .opacity(settings.transparency)
         }
-        .opacity(settings.transparency)
     }
 }
-

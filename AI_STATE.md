@@ -49,3 +49,9 @@
 - Release workflow publishes unsigned when signing secrets are absent; release notes include first-launch instructions.
 - Cask moved to tap repo `maimon33/homebrew-always-clock` (v1.3 cask created); `homebrew/always-clock.rb` removed from this repo.
 - Added `set-release-secrets.sh` and `RELEASE_SETUP.md` for uploading Apple secrets.
+
+### 2026-10-17 — Frame, text effects, fonts and date toggle
+- Window size now comes from `frameWidth`/`frameHeight`; text size (`clockSize`) no longer resizes the window.
+- `ContentView` draws a rounded frame (own color, opacity, corner radius); `transparency` now applies to text only.
+- `DigitalClockView`: date toggle, `ClockFont` picker (4 system designs), and `textEffects` (outline, glow, adjustable shadow). Analog clock is unchanged.
+- Open: not yet compiled in full Xcode; only typechecked with the Swift compiler.

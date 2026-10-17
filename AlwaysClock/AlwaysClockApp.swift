@@ -33,9 +33,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             .environmentObject(ClockSettings.shared)
 
         let settings = ClockSettings.shared
-        let windowSize = max(200 * settings.clockSize, 100)
         clockWindow = NSWindow(
-            contentRect: NSRect(x: settings.windowX, y: settings.windowY, width: windowSize, height: windowSize),
+            contentRect: NSRect(x: settings.windowX, y: settings.windowY, width: settings.frameWidth, height: settings.frameHeight),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
@@ -148,9 +147,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+enum ClockFont: String, CaseIterable {
+    case monospaced, rounded, serif, standard
+
+    var design: Font.Design {
+        switch self {
+        case .monospaced: return .monospaced
+        case .rounded: return .rounded
+        case .serif: return .serif
+        case .standard: return .default
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .monospaced: return "Monospaced"
+        case .rounded: return "Rounded"
+        case .serif: return "Serif"
+        case .standard: return "Default"
+        }
+    }
+}
+
 class ClockSettings: ObservableObject {
     static let shared = ClockSettings()
 
+    /// Text opacity (clock digits and date).
     @Published var transparency: Double {
         didSet {
             UserDefaults.standard.set(transparency, forKey: "transparency")
@@ -160,7 +182,92 @@ class ClockSettings: ObservableObject {
     @Published var clockSize: Double {
         didSet {
             UserDefaults.standard.set(clockSize, forKey: "clockSize")
+        }
+    }
+
+    @Published var frameWidth: Double {
+        didSet {
+            UserDefaults.standard.set(frameWidth, forKey: "frameWidth")
             updateWindowSize()
+        }
+    }
+
+    @Published var frameHeight: Double {
+        didSet {
+            UserDefaults.standard.set(frameHeight, forKey: "frameHeight")
+            updateWindowSize()
+        }
+    }
+
+    @Published var frameOpacity: Double {
+        didSet {
+            UserDefaults.standard.set(frameOpacity, forKey: "frameOpacity")
+        }
+    }
+
+    @Published var frameCornerRadius: Double {
+        didSet {
+            UserDefaults.standard.set(frameCornerRadius, forKey: "frameCornerRadius")
+        }
+    }
+
+    @Published var frameColor: Color {
+        didSet {
+            Self.save(frameColor, forKey: "frameColor")
+        }
+    }
+
+    @Published var showDate: Bool {
+        didSet {
+            UserDefaults.standard.set(showDate, forKey: "showDate")
+        }
+    }
+
+    @Published var font: ClockFont {
+        didSet {
+            UserDefaults.standard.set(font.rawValue, forKey: "font")
+        }
+    }
+
+    @Published var shadowColor: Color {
+        didSet {
+            Self.save(shadowColor, forKey: "shadowColor")
+        }
+    }
+
+    @Published var shadowRadius: Double {
+        didSet {
+            UserDefaults.standard.set(shadowRadius, forKey: "shadowRadius")
+        }
+    }
+
+    @Published var shadowOffset: Double {
+        didSet {
+            UserDefaults.standard.set(shadowOffset, forKey: "shadowOffset")
+        }
+    }
+
+    @Published var outlineColor: Color {
+        didSet {
+            Self.save(outlineColor, forKey: "outlineColor")
+        }
+    }
+
+    @Published var outlineWidth: Double {
+        didSet {
+            UserDefaults.standard.set(outlineWidth, forKey: "outlineWidth")
+        }
+    }
+
+    @Published var glowColor: Color {
+        didSet {
+            Self.save(glowColor, forKey: "glowColor")
+        }
+    }
+
+    @Published var glowRadius: Double {
+        didSet {
+            UserDefaults.standard.set(glowRadius, forKey: "glowRadius")
         }
     }
 
@@ -214,6 +321,33 @@ class ClockSettings: ObservableObject {
         }
 
         self.showSeconds = UserDefaults.standard.bool(forKey: "showSeconds")
+
+        self.frameWidth = UserDefaults.standard.object(forKey: "frameWidth") as? Double ?? 200
+        self.frameHeight = UserDefaults.standard.object(forKey: "frameHeight") as? Double ?? 200
+        self.frameOpacity = UserDefaults.standard.object(forKey: "frameOpacity") as? Double ?? 0.3
+        self.frameCornerRadius = UserDefaults.standard.object(forKey: "frameCornerRadius") as? Double ?? 12
+        self.frameColor = Self.load(forKey: "frameColor", default: .black)
+        self.showDate = UserDefaults.standard.object(forKey: "showDate") as? Bool ?? true
+        self.font = UserDefaults.standard.string(forKey: "font").flatMap(ClockFont.init(rawValue:)) ?? .monospaced
+        self.shadowColor = Self.load(forKey: "shadowColor", default: .black.opacity(0.5))
+        self.shadowRadius = UserDefaults.standard.object(forKey: "shadowRadius") as? Double ?? 2
+        self.shadowOffset = UserDefaults.standard.object(forKey: "shadowOffset") as? Double ?? 1
+        self.outlineColor = Self.load(forKey: "outlineColor", default: .black)
+        self.outlineWidth = UserDefaults.standard.object(forKey: "outlineWidth") as? Double ?? 0
+        self.glowColor = Self.load(forKey: "glowColor", default: .white)
+        self.glowRadius = UserDefaults.standard.object(forKey: "glowRadius") as? Double ?? 0
+    }
+
+    private static func save(_ color: Color, forKey key: String) {
+        if let data = try? NSKeyedArchiver.archivedData(withRootObject: NSColor(color), requiringSecureCoding: false) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+
+    private static func load(forKey key: String, default fallback: Color) -> Color {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let nsColor = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSColor.self, from: data) else { return fallback }
+        return Color(nsColor)
     }
 
     enum Placement { case low, middle, high }
@@ -255,13 +389,12 @@ class ClockSettings: ObservableObject {
     private func updateWindowSize() {
         DispatchQueue.main.async {
             guard let clockWindow = self.clockWindow else { return }
-            let windowSize = max(200 * self.clockSize, 100)
             let currentFrame = clockWindow.frame
             let newFrame = NSRect(
                 x: currentFrame.origin.x,
                 y: currentFrame.origin.y,
-                width: windowSize,
-                height: windowSize
+                width: self.frameWidth,
+                height: self.frameHeight
             )
             clockWindow.setFrame(newFrame, display: true, animate: false)
         }

@@ -3,170 +3,87 @@
 [![Build App](https://github.com/maimon33/always-clock/actions/workflows/build-app.yml/badge.svg)](https://github.com/maimon33/always-clock/actions/workflows/build-app.yml)
 [![Test Build](https://github.com/maimon33/always-clock/actions/workflows/test-build.yml/badge.svg)](https://github.com/maimon33/always-clock/actions/workflows/test-build.yml)
 
-A simple and elegant always-on-top clock for macOS that stays visible over all windows and full-screen applications.
+A simple, always-on-top clock for macOS that stays visible over all windows and full-screen apps.
 
-## 🚀 **Get the App (No Xcode Required!)**
+Requires macOS 13.0 (Ventura) or later.
 
-### Option 1: Homebrew
+## Install
+
 ```bash
-brew tap maimon33/always-clock && brew install --cask always-clock
-```
-The cask is regenerated automatically on each release.
-
-### Option 2: Download from Releases (Recommended)
-- Check [**Releases**](../../releases) for stable versions with permanent download links
-- Download formats: DMG, PKG, or ZIP
-
-### Option 3: Download from GitHub Actions
-1. Go to [**Actions**](../../actions) tab above
-2. Click latest **"Build Always Clock App"** workflow run
-3. Scroll to **Artifacts** and download your preferred format:
-   - `always-clock-dmg` - Mac-style DMG installer
-   - `always-clock-pkg` - System installer wizard
-   - `always-clock-zip` - ZIP archive
-   - `always-clock-app` - Direct app bundle
-
-### Option 4: Trigger Your Own Build
-1. Fork this repository
-2. Go to **Actions** → **"Build Always Clock App"** → **"Run workflow"**
-3. Wait 5 minutes and download your fresh build!
-
-## Features
-
-- **Always on Top**: Stays visible over all applications, including full-screen apps
-- **Click-Through**: Clock is completely non-interactive - won't interfere with your work
-- **Digital & Analog Clocks**: Switch between digital and analog clock displays
-- **Customizable Transparency**: Adjust opacity from 10% to 100%
-- **Resizable**: Scale the clock from 50% to 200% of original size
-- **Color Customization**: Choose any color for the clock display
-- **Start at Login**: Automatically launch when you log in to macOS
-- **Positioning Controls**: Use predefined locations or numeric coordinates to place the clock
-- **Global Keyboard Shortcut**: Press ⌘⇧T to open settings from anywhere
-- **Menu Bar Integration**: Access settings and controls from the menu bar
-
-## Requirements
-
-- macOS 13.0 (Ventura) or later
-- Xcode 15.0 or later (for building from source)
-
-## Building & Distribution
-
-### Prerequisites
-- macOS 13.0 (Ventura) or later
-- Xcode 15.0 or later (full Xcode, not just command line tools)
-
-### Quick Start - Complete Distribution Build
-```bash
-# Creates all distribution formats at once
-./distribute.sh
+brew tap maimon33/always-clock
+brew install --cask maimon33/always-clock/always-clock
 ```
 
-This creates:
-- **App Bundle** (`.app`) - Drag to Applications
-- **DMG Installer** (`.dmg`) - Mac-style disk image
-- **PKG Installer** (`.pkg`) - Installer wizard
-- **ZIP Archive** (`.zip`) - Compressed download
+Or download the DMG, PKG or ZIP from the [Releases](../../releases) page.
 
-### Individual Build Options
+If macOS says the app can't be opened, run:
 
-#### Option 1: Using Xcode (Recommended for Development)
 ```bash
-./open-xcode.sh          # Opens project in Xcode
-# Then press Cmd+R to build and run
+xattr -dr com.apple.quarantine "/Applications/Always Clock.app"
 ```
 
-#### Option 2: Package App Bundle Only
+## Reinstall / Update
+
 ```bash
-./package-app.sh         # Creates standalone .app
+brew update
+brew reinstall --cask maimon33/always-clock/always-clock
 ```
 
-#### Option 3: Create DMG Installer
+To update without reinstalling, use `brew upgrade --cask maimon33/always-clock/always-clock`.
+
+If Homebrew reports `already an App at '/Applications/Always Clock.app'`, the app was installed outside Homebrew. Overwrite it with:
+
 ```bash
-./package-app.sh         # First create app bundle
-./create-dmg.sh         # Then create DMG
+brew install --cask --force maimon33/always-clock/always-clock
 ```
 
-#### Option 4: Create PKG Installer
+## Install from Source
+
+You need full Xcode 15 or later.
+
 ```bash
-./package-app.sh         # First create app bundle
-./create-pkg.sh         # Then create PKG
+git clone https://github.com/maimon33/always-clock.git
+cd always-clock
+./build.sh
+cp -R build/Build/Products/Release/AlwaysClock.app /Applications/
 ```
 
-### Signed & Notarized Release Build
-Signing and notarization are driven by environment variables. Without them, `distribute.sh` builds unsigned artifacts for local testing.
-```bash
-export SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
-export INSTALLER_IDENTITY="Developer ID Installer: Your Name (TEAMID)"
-export APPLE_TEAM_ID=TEAMID
-export ASC_KEY_PATH=~/keys/AuthKey_XXXXXXXXXX.p8
-export ASC_KEY_ID=XXXXXXXXXX
-export ASC_ISSUER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-./distribute.sh
-```
-Versions come from the latest `v*` git tag (or `VERSION=1.4 ./distribute.sh`). Release tags on GitHub run the same flow via `.github/workflows/release.yml`, which needs the matching repository secrets.
+To run it from Xcode instead, use `./open-xcode.sh` and press Cmd+R.
 
-### App Icon
-The build process automatically creates a clock icon. To regenerate:
-```bash
-./create-icon.sh        # Creates app icon in all required sizes
-```
+For packaging, signing and release details, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## Usage
 
-### First Launch
-1. Run the application
-2. The clock will appear on your screen (completely click-through)
-3. A menu bar item (clock icon) will be added to your system menu bar
-4. No permissions are required; the ⌘⇧T shortcut works without Accessibility access
-
-### Controls
-- **Global Shortcut**: Press **⌘⇧T** to open settings from anywhere
-- **Menu Bar**: Click the clock icon in the menu bar for settings and controls
-- **Non-Interactive**: The clock is completely click-through and won't interfere with your work
+- The clock is click-through, so it never blocks your work.
+- Press **⌘⇧T** from anywhere to open Settings.
+- Or click the clock icon in the menu bar to open Settings or quit.
 
 ### Settings
-Access settings via the menu bar icon or global shortcut (⌘⇧T):
-- **Clock Type**: Choose between Digital or Analog display
-- **Transparency**: Adjust from 10% (very transparent) to 100% (opaque)
-- **Size**: Scale from 50% to 200% of original size
-- **Color**: Pick any color for the clock display
-- **Start at Login**: Enable/disable automatic startup
-- **Reset to Defaults**: Restore original settings
 
-### Default Settings
-- **Type**: Digital clock
-- **Transparency**: 80%
-- **Size**: 100%
-- **Color**: White
-- **Start at Login**: Disabled
+- **Clock type:** digital or analog. Digital also offers seconds, date and font.
+- **Text:** transparency, size and color.
+- **Position:** predefined spots or exact X/Y coordinates.
+- **System:** start at login, reset to defaults, quit.
 
-## Uninstalling
+## Uninstall
 
-1. Disable "Start at login" in settings (if enabled)
-2. Quit the application
-3. Delete the app from your Applications folder
-4. The app stores minimal preferences in `~/Library/Preferences/`
+```bash
+brew uninstall --cask always-clock
+```
 
-## Troubleshooting
+Remove the preferences file too, if you want a full cleanup:
 
-**Clock not staying on top of full-screen apps:**
-- The app uses `.floating` window level and `.fullScreenAuxiliary` collection behavior to work with full-screen applications
+```bash
+rm ~/Library/Preferences/com.alwaysclock.app.plist
+```
 
-**App won't start at login:**
-- Ensure you've enabled the setting in the app preferences
-- Check System Preferences > Users & Groups > Login Items
+If you installed without Homebrew, disable "Start at login" in Settings and delete the app from `/Applications`.
 
-**Clock disappears:**
-- Look for the menu bar icon and access settings
-- The clock might be positioned off-screen - use Reset to Defaults
+## Privacy
 
-## Privacy & Permissions
-
-This app:
-- Runs as a menu bar application (LSUIElement)
-- Does not collect any personal data
-- Does not require internet access
-- Stores preferences locally using UserDefaults
+- Runs as a menu bar app with no Dock icon.
+- Collects no personal data and needs no internet access.
+- Stores preferences locally with UserDefaults.
 
 ## License
 

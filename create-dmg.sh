@@ -4,17 +4,10 @@
 
 set -e
 
+cd "$(dirname "$0")"
+source ./version.sh
+
 APP_NAME="Always Clock"
-# Get version from git tag or environment variable
-if [ -n "$GITHUB_REF" ] && [[ $GITHUB_REF == refs/tags/* ]]; then
-    VERSION=${GITHUB_REF#refs/tags/v}
-elif [ -n "$VERSION" ]; then
-    # Use environment variable if set
-    VERSION="$VERSION"
-else
-    # Fallback to git tag or default
-    VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "1.0")
-fi
 DIST_DIR="./dist"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 DMG_NAME="Always-Clock-v$VERSION"
@@ -57,13 +50,13 @@ FEATURES:
 • Adjustable transparency and size
 • Customizable colors
 • Start at login option
-• Drag to reposition
+• Open Settings (⌘⇧T) to drag the clock or pick a preset position
 
 REQUIREMENTS:
 • macOS 13.0 (Ventura) or later
 
 For support and updates, visit:
-https://github.com/yourusername/always-clock
+https://github.com/maimon33/always-clock
 
 Enjoy your always-visible clock!
 EOF
@@ -121,6 +114,12 @@ echo "🗜️  Compressing DMG..."
 
 # Convert to compressed, read-only DMG
 hdiutil convert "$TEMP_DMG" -format UDZO -imagekey zlib-level=9 -o "$FINAL_DMG"
+
+if [ -n "$SIGN_IDENTITY" ]; then
+    echo "✍️  Signing DMG..."
+    codesign --force --timestamp --sign "$SIGN_IDENTITY" "$FINAL_DMG"
+    codesign --verify --verbose=2 "$FINAL_DMG"
+fi
 
 # Clean up
 rm -f "$TEMP_DMG"

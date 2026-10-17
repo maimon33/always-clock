@@ -7,10 +7,11 @@ A simple and elegant always-on-top clock for macOS that stays visible over all w
 
 ## 🚀 **Get the App (No Xcode Required!)**
 
-### Option 1: Homebrew (Coming Soon)
+### Option 1: Homebrew
 ```bash
 brew install --cask always-clock
 ```
+The cask is regenerated automatically on each release.
 
 ### Option 2: Download from Releases (Recommended)
 - Check [**Releases**](../../releases) for stable versions with permanent download links
@@ -91,11 +92,18 @@ This creates:
 ./create-pkg.sh         # Then create PKG
 ```
 
-### Code Signing (Optional)
-For distribution outside the App Store:
+### Signed & Notarized Release Build
+Signing and notarization are driven by environment variables. Without them, `distribute.sh` builds unsigned artifacts for local testing.
 ```bash
-./codesign.sh           # Sign the app (requires Developer ID)
+export SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
+export INSTALLER_IDENTITY="Developer ID Installer: Your Name (TEAMID)"
+export APPLE_TEAM_ID=TEAMID
+export ASC_KEY_PATH=~/keys/AuthKey_XXXXXXXXXX.p8
+export ASC_KEY_ID=XXXXXXXXXX
+export ASC_ISSUER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+./distribute.sh
 ```
+Versions come from the latest `v*` git tag (or `VERSION=1.4 ./distribute.sh`). Release tags on GitHub run the same flow via `.github/workflows/release.yml`, which needs the matching repository secrets.
 
 ### App Icon
 The build process automatically creates a clock icon. To regenerate:
@@ -109,7 +117,7 @@ The build process automatically creates a clock icon. To regenerate:
 1. Run the application
 2. The clock will appear on your screen (completely click-through)
 3. A menu bar item (clock icon) will be added to your system menu bar
-4. You may be prompted to grant Accessibility permissions for the global shortcut
+4. No permissions are required; the ⌘⇧T shortcut works without Accessibility access
 
 ### Controls
 - **Global Shortcut**: Press **⌘⇧T** to open settings from anywhere

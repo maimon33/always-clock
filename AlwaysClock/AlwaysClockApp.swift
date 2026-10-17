@@ -1,5 +1,5 @@
 import SwiftUI
-import ServiceManagement
+import Carbon.HIToolbox
 
 @main
 struct AlwaysClockApp: App {
@@ -20,13 +20,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var clockWindow: NSWindow?
     private var statusItem: NSStatusItem?
     private var settingsWindow: NSWindow?
-    private var globalEventMonitor: Any?
+    private var hotKeyRef: EventHotKeyRef?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupClockWindow()
         setupStatusBarItem()
-        setupLoginItem()
-        setupGlobalKeyboardShortcut()
+        setupSettingsHotKey()
     }
 
     private func setupClockWindow() {
@@ -52,6 +51,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         clockWindow?.isMovableByWindowBackground = false
         clockWindow?.hasShadow = false
         clockWindow?.makeKeyAndOrderFront(nil)
+
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.didMoveNotification,
+            object: clockWindow,
+            queue: .main
+        ) { [weak self] _ in
+            guard let origin = self?.clockWindow?.frame.origin else { return }
+            ClockSettings.shared.windowX = Double(origin.x)
+            ClockSettings.shared.windowY = Double(origin.y)
+        }
 
         NSApp.setActivationPolicy(.accessory)
     }
@@ -95,66 +104,47 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             settingsWindow?.center()
             settingsWindow?.setFrameAutosaveName("SettingsWindow")
             settingsWindow?.isReleasedWhenClosed = false
+
+            NotificationCenter.default.addObserver(
+                forName: NSWindow.willCloseNotification,
+                object: settingsWindow,
+                queue: .main
+            ) { [weak self] _ in
+                self?.setClockDraggable(false)
+                NSApp.setActivationPolicy(.accessory)
+            }
         }
 
+        setClockDraggable(true)
         NSApp.setActivationPolicy(.regular)
         settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
 
-        // Set back to accessory when window closes
-        NotificationCenter.default.addObserver(
-            forName: NSWindow.willCloseNotification,
-            object: settingsWindow,
-            queue: .main
-        ) { _ in
-            NSApp.setActivationPolicy(.accessory)
-        }
+    private func setClockDraggable(_ draggable: Bool) {
+        clockWindow?.ignoresMouseEvents = !draggable
+        clockWindow?.isMovableByWindowBackground = draggable
     }
 
     @objc private func quitApp() {
         NSApplication.shared.terminate(self)
     }
 
-    private func setupLoginItem() {
-        if #available(macOS 13.0, *) {
-            try? SMAppService.mainApp.register()
-        }
-    }
+    /// Registers ⌘⇧T as a system hotkey. Unlike a global key monitor, this needs no
+    /// Accessibility or Input Monitoring permission, so macOS never prompts for it.
+    private func setupSettingsHotKey() {
+        var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        let selfPointer = Unmanaged.passUnretained(self).toOpaque()
 
-    private func setupGlobalKeyboardShortcut() {
-        // Check for accessibility permissions first
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
-        let accessEnabled = AXIsProcessTrustedWithOptions(options as CFDictionary)
+        InstallEventHandler(GetApplicationEventTarget(), { _, _, userData in
+            guard let userData else { return OSStatus(eventNotHandledErr) }
+            let delegate = Unmanaged<AppDelegate>.fromOpaque(userData).takeUnretainedValue()
+            DispatchQueue.main.async { delegate.openSettings() }
+            return noErr
+        }, 1, &eventType, selfPointer, nil)
 
-        if accessEnabled {
-            globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
-                // Check for Cmd+Shift+T shortcut
-                if event.modifierFlags.contains([.command, .shift]) && event.keyCode == 17 { // T key
-                    DispatchQueue.main.async {
-                        self.openSettings()
-                    }
-                }
-            }
-        } else {
-            // Show alert about accessibility permission
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                let alert = NSAlert()
-                alert.messageText = "Accessibility Permission Required"
-                alert.informativeText = "To use the global keyboard shortcut (⌘⇧T), please grant Always Clock accessibility access in System Settings > Privacy & Security > Accessibility."
-                alert.addButton(withTitle: "Open System Settings")
-                alert.addButton(withTitle: "Skip")
-
-                if alert.runModal() == .alertFirstButtonReturn {
-                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
-                }
-            }
-        }
-    }
-
-    deinit {
-        if let monitor = globalEventMonitor {
-            NSEvent.removeMonitor(monitor)
-        }
+        let hotKeyID = EventHotKeyID(signature: OSType(0x41434C4B), id: 1) // 'ACLK'
+        RegisterEventHotKey(UInt32(kVK_ANSI_T), UInt32(cmdKey | shiftKey), hotKeyID, GetApplicationEventTarget(), 0, &hotKeyRef)
     }
 }
 
@@ -213,11 +203,8 @@ class ClockSettings: ObservableObject {
         self.clockSize = UserDefaults.standard.double(forKey: "clockSize") == 0 ? 1.0 : UserDefaults.standard.double(forKey: "clockSize")
         self.isAnalogClock = UserDefaults.standard.bool(forKey: "isAnalogClock")
 
-        let savedX = UserDefaults.standard.double(forKey: "windowX")
-        self.windowX = savedX == 0 ? 100 : savedX
-
-        let savedY = UserDefaults.standard.double(forKey: "windowY")
-        self.windowY = savedY == 0 ? 100 : savedY
+        self.windowX = UserDefaults.standard.object(forKey: "windowX") as? Double ?? 100
+        self.windowY = UserDefaults.standard.object(forKey: "windowY") as? Double ?? 100
 
         if let colorData = UserDefaults.standard.data(forKey: "clockColor"),
            let nsColor = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSColor.self, from: colorData) {
@@ -229,12 +216,37 @@ class ClockSettings: ObservableObject {
         self.showSeconds = UserDefaults.standard.bool(forKey: "showSeconds")
     }
 
+    enum Placement { case low, middle, high }
+
+    /// Moves the clock to a spot inside the visible area of its screen (clear of the menu bar and Dock).
+    /// AppKit's y axis grows upward, so `.high` on the vertical axis is the top edge.
+    func placeClock(x: Placement, y: Placement) {
+        guard let window = clockWindow, let area = (window.screen ?? NSScreen.main)?.visibleFrame else { return }
+        let margin: CGFloat = 20
+        let size = window.frame.size
+
+        switch x {
+        case .low: windowX = Double(area.minX + margin)
+        case .middle: windowX = Double(area.midX - size.width / 2)
+        case .high: windowX = Double(area.maxX - size.width - margin)
+        }
+
+        switch y {
+        case .low: windowY = Double(area.minY + margin)
+        case .middle: windowY = Double(area.midY - size.height / 2)
+        case .high: windowY = Double(area.maxY - size.height - margin)
+        }
+    }
+
+    private var clockWindow: NSWindow? {
+        NSApp.windows.first { $0.level == .floating }
+    }
+
     private func updateWindowPosition() {
         DispatchQueue.main.async {
-            if let clockWindow = NSApp.windows.first(where: { window in
-                window.level == .floating
-            }) {
-                let newOrigin = CGPoint(x: self.windowX, y: self.windowY)
+            guard let clockWindow = self.clockWindow else { return }
+            let newOrigin = CGPoint(x: self.windowX, y: self.windowY)
+            if clockWindow.frame.origin != newOrigin {
                 clockWindow.setFrameOrigin(newOrigin)
             }
         }
@@ -242,19 +254,16 @@ class ClockSettings: ObservableObject {
 
     private func updateWindowSize() {
         DispatchQueue.main.async {
-            if let clockWindow = NSApp.windows.first(where: { window in
-                window.level == .floating
-            }) {
-                let windowSize = max(200 * self.clockSize, 100)
-                let currentFrame = clockWindow.frame
-                let newFrame = NSRect(
-                    x: currentFrame.origin.x,
-                    y: currentFrame.origin.y,
-                    width: windowSize,
-                    height: windowSize
-                )
-                clockWindow.setFrame(newFrame, display: true, animate: false)
-            }
+            guard let clockWindow = self.clockWindow else { return }
+            let windowSize = max(200 * self.clockSize, 100)
+            let currentFrame = clockWindow.frame
+            let newFrame = NSRect(
+                x: currentFrame.origin.x,
+                y: currentFrame.origin.y,
+                width: windowSize,
+                height: windowSize
+            )
+            clockWindow.setFrame(newFrame, display: true, animate: false)
         }
     }
 }

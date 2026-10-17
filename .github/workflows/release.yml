@@ -3,143 +3,167 @@ name: Release Always Clock
 on:
   push:
     tags:
-      - 'v*'  # Triggers on version tags like v1.0, v1.1, etc.
-  workflow_dispatch:  # Allow manual trigger
+      - 'v*'  # v1.4 -> version 1.4
+  workflow_dispatch:  # manual run builds unsigned artifacts; no release is published
 
 jobs:
-  build-and-release:
+  release:
     runs-on: macos-latest
-
     permissions:
-      contents: write  # Required to create releases
+      contents: write  # create the release and commit the Homebrew cask
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
-    - name: Get version from tag
-      id: get_version
-      run: |
-        if [[ $GITHUB_REF == refs/tags/* ]]; then
-          VERSION=${GITHUB_REF#refs/tags/v}
-        else
-          VERSION="1.0"
-        fi
-        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-        echo "Building version: $VERSION"
+      with:
+        fetch-depth: 0  # git describe / rev-list need full history
 
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
         xcode-version: latest-stable
 
-    - name: Create app icon
+    - name: Require signing secrets for tag releases
+      if: startsWith(github.ref, 'refs/tags/v')
+      env:
+        MACOS_CERT_P12_BASE64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+        MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
+        APPLE_INSTALLER_IDENTITY: ${{ secrets.APPLE_INSTALLER_IDENTITY }}
+        ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+        ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       run: |
-        chmod +x create-icon.sh
-        ./create-icon.sh || echo "Icon creation failed, using default"
+        missing=0
+        for var in MACOS_CERT_P12_BASE64 MACOS_CERT_PASSWORD APPLE_TEAM_ID APPLE_SIGN_IDENTITY \
+                   APPLE_INSTALLER_IDENTITY ASC_KEY_P8_BASE64 ASC_KEY_ID ASC_ISSUER_ID; do
+          if [ -z "${!var}" ]; then
+            echo "::error::Secret $var is not set; a release must be signed and notarized"
+            missing=1
+          fi
+        done
+        exit $missing
 
-    - name: Build complete distribution
+    - name: Import signing certificate and notary key
+      if: startsWith(github.ref, 'refs/tags/v')
+      env:
+        MACOS_CERT_P12_BASE64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+        MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+        ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       run: |
-        chmod +x distribute.sh
+        KEYCHAIN="$RUNNER_TEMP/release.keychain-db"
+        KEYCHAIN_PASSWORD=$(uuidgen)
+
+        echo "$MACOS_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+        security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+        security set-keychain-settings -lut 21600 "$KEYCHAIN"
+        security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+        security import "$RUNNER_TEMP/cert.p12" -P "$MACOS_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+        security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+        security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+        rm -f "$RUNNER_TEMP/cert.p12"
+
+        echo "$ASC_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+
+        echo "ASC_KEY_PATH=$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8" >> "$GITHUB_ENV"
+        echo "ASC_KEY_ID=$ASC_KEY_ID" >> "$GITHUB_ENV"
+        echo "ASC_ISSUER_ID=$ASC_ISSUER_ID" >> "$GITHUB_ENV"
+
+        security find-identity -v -p codesigning "$KEYCHAIN"
+
+    - name: Build, sign and notarize
+      env:
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
+        APPLE_INSTALLER_IDENTITY: ${{ secrets.APPLE_INSTALLER_IDENTITY }}
+      run: |
+        chmod +x *.sh
+        if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          export SIGN_IDENTITY="$APPLE_SIGN_IDENTITY"
+          export INSTALLER_IDENTITY="$APPLE_INSTALLER_IDENTITY"
+          export APPLE_TEAM_ID
+        fi
         ./distribute.sh
 
-    - name: Prepare release files
-      id: prepare_release
+    - name: Read version
+      id: version
       run: |
-        cd dist
+        source ./version.sh
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "dmg_sha256=$(shasum -a 256 "dist/Always-Clock-v$VERSION.dmg" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
-        # Rename files with version
-        VERSION="${{ steps.get_version.outputs.VERSION }}"
+    - name: Update Homebrew cask
+      if: startsWith(github.ref, 'refs/tags/v')
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+        SHA256: ${{ steps.version.outputs.dmg_sha256 }}
+      run: |
+        cat > homebrew/always-clock.rb << EOF
+        cask "always-clock" do
+          version "$VERSION"
+          sha256 "$SHA256"
 
-        # Generate checksums for Homebrew
-        DMG_FILE="Always-Clock-v$VERSION.dmg"
-        if [ -f "$DMG_FILE" ]; then
-          SHA256=$(shasum -a 256 "$DMG_FILE" | cut -d' ' -f1)
-          echo "DMG_SHA256=$SHA256" >> $GITHUB_OUTPUT
-          echo "DMG SHA256: $SHA256"
-        else
-          echo "⚠️  DMG file not found: $DMG_FILE"
-          ls -la *.dmg || echo "No DMG files found"
-        fi
+          url "https://github.com/maimon33/always-clock/releases/download/v#{version}/Always-Clock-v#{version}.dmg"
+          name "Always Clock"
+          desc "Always-on-top transparent clock for macOS"
+          homepage "https://github.com/maimon33/always-clock"
 
-        # Create release notes
-        cat > ../RELEASE_NOTES.md << EOF
-        # Always Clock v$VERSION
+          depends_on macos: ">= :ventura"
 
-        ## 🎯 Features
-        - Always-on-top floating clock
-        - Digital and analog clock modes
-        - Adjustable transparency (10% - 100%)
-        - Resizable (50% - 200%)
-        - Color customization
-        - Drag to reposition anywhere
-        - Start at login option
-        - Menu bar integration
-        - Context menu controls
-        - Works over full-screen applications
+          app "Always Clock.app"
 
-        ## 📦 Installation Options
+          zap trash: [
+            "~/Library/Preferences/com.alwaysclock.app.plist",
+          ]
+        end
+        EOF
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add homebrew/always-clock.rb
+        git commit -m "Update Homebrew cask to $VERSION" || echo "Cask already up to date"
+        git push origin HEAD:main || echo "::warning::Could not push cask update to main"
 
-        ### Option 1: DMG Installer (Recommended)
-        1. Download \`Always-Clock-v$VERSION.dmg\`
-        2. Open the DMG file
-        3. Drag "Always Clock" to Applications folder
+    - name: Write release notes
+      run: |
+        cat > RELEASE_NOTES.md << EOF
+        # Always Clock v${{ steps.version.outputs.version }}
 
-        ### Option 2: PKG Installer
-        1. Download \`Always-Clock-v$VERSION.pkg\`
-        2. Double-click to run installer wizard
-        3. Follow installation prompts
+        ## Installation
+        - **DMG** (recommended): open it and drag Always Clock to Applications
+        - **PKG**: double-click and follow the installer
+        - **ZIP**: extract and drag Always Clock to Applications
+        - **Homebrew**: \`brew install --cask always-clock\`
 
-        ### Option 3: ZIP Archive
-        1. Download \`Always-Clock-v$VERSION.zip\`
-        2. Extract and drag "Always Clock.app" to Applications
-
-        ### Option 4: Direct App Bundle
-        1. Download \`always-clock-app.zip\` from artifacts
-        2. Extract and drag to Applications folder
-
-        ## 💻 System Requirements
-        - macOS 13.0 (Ventura) or later
-        - No additional dependencies required
-
-        ## 🚀 Usage
-        1. Launch "Always Clock" from Applications
-        2. Clock appears on screen - drag to reposition
-        3. Right-click for options or use menu bar icon
-        4. Access Settings to customize appearance
-
-        ---
-
-        Built with ❤️ using SwiftUI and GitHub Actions
+        ## Usage
+        - The clock is click-through; open **Settings** (⌘⇧T or the menu bar icon) to drag it or pick a preset position
+        - Requires macOS 13.0 (Ventura) or later
         EOF
 
-        echo "Release notes created"
-        ls -la
-
-        cd ..
-        echo "RELEASE_TAG=v$VERSION" >> $GITHUB_OUTPUT
-
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
+    - name: Publish release
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v2
       with:
-        tag_name: ${{ steps.prepare_release.outputs.RELEASE_TAG }}
-        name: Always Clock v${{ steps.get_version.outputs.VERSION }}
+        tag_name: ${{ github.ref_name }}
+        name: Always Clock v${{ steps.version.outputs.version }}
         body_path: RELEASE_NOTES.md
-        draft: false
-        prerelease: false
         files: |
           dist/*.dmg
           dist/*.pkg
           dist/*.zip
 
-    - name: Upload artifacts (backup)
+    - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: always-clock-release-v${{ steps.get_version.outputs.VERSION }}
+        name: always-clock-${{ steps.version.outputs.version }}
         path: |
-          dist/Always Clock.app
           dist/*.dmg
           dist/*.pkg
           dist/*.zip
-          RELEASE_NOTES.md
-        retention-days: 90
+        retention-days: 30
+
+    - name: Clean up keychain
+      if: always()
+      run: security delete-keychain "$RUNNER_TEMP/release.keychain-db" || true

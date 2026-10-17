@@ -5,20 +5,22 @@
 
 set -e
 
+cd "$(dirname "$0")"
+source ./version.sh
+
 APP_NAME="Always Clock"
-# Get version from git tag or environment variable
-if [ -n "$GITHUB_REF" ] && [[ $GITHUB_REF == refs/tags/* ]]; then
-    VERSION=${GITHUB_REF#refs/tags/v}
-elif [ -n "$VERSION" ]; then
-    # Use environment variable if set
-    VERSION="$VERSION"
-else
-    # Fallback to git tag or default
-    VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "1.0")
-fi
 DIST_DIR="./dist"
 
-echo "🚀 Always Clock - Complete Distribution Build"
+# Notarize only when App Store Connect API credentials are configured (CI release builds set them)
+notarize_if_configured() {
+    if [ -n "$ASC_KEY_PATH" ]; then
+        ./notarize.sh "$1"
+    else
+        echo "ℹ️  Skipping notarization of $(basename "$1") (ASC_KEY_PATH not set)"
+    fi
+}
+
+echo "🚀 Always Clock $VERSION - Complete Distribution Build"
 echo "=============================================="
 
 # Clean previous builds
@@ -42,18 +44,21 @@ if [ ! -d "$DIST_DIR/$APP_NAME.app" ]; then
     echo "❌ App packaging failed!"
     exit 1
 fi
+notarize_if_configured "$DIST_DIR/$APP_NAME.app"
 
 # Step 3: Create DMG
 echo ""
 echo "💿 Creating DMG installer..."
 ./create-dmg.sh
+notarize_if_configured "$DIST_DIR/Always-Clock-v$VERSION.dmg"
 
 # Step 4: Create PKG
 echo ""
 echo "📦 Creating PKG installer..."
 ./create-pkg.sh
+notarize_if_configured "$DIST_DIR/Always-Clock-v$VERSION.pkg"
 
-# Step 5: Create ZIP archive (for easy sharing)
+# Step 5: Create ZIP archive (for easy sharing; contains the stapled app)
 echo ""
 echo "🗜️  Creating ZIP archive..."
 cd "$DIST_DIR"

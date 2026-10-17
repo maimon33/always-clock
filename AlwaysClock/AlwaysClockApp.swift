@@ -199,6 +199,25 @@ class ClockSettings: ObservableObject {
         }
     }
 
+    @Published var fitFrameToContent: Bool {
+        didSet {
+            UserDefaults.standard.set(fitFrameToContent, forKey: "fitFrameToContent")
+            updateWindowSize()
+        }
+    }
+
+    @Published var frameMargin: Double {
+        didSet {
+            UserDefaults.standard.set(frameMargin, forKey: "frameMargin")
+            updateWindowSize()
+        }
+    }
+
+    /// Measured size of the visible clock (text or analog dial). Not persisted.
+    var contentSize: CGSize = .zero {
+        didSet { updateWindowSize() }
+    }
+
     @Published var frameOpacity: Double {
         didSet {
             UserDefaults.standard.set(frameOpacity, forKey: "frameOpacity")
@@ -324,6 +343,8 @@ class ClockSettings: ObservableObject {
 
         self.frameWidth = UserDefaults.standard.object(forKey: "frameWidth") as? Double ?? 200
         self.frameHeight = UserDefaults.standard.object(forKey: "frameHeight") as? Double ?? 200
+        self.fitFrameToContent = UserDefaults.standard.object(forKey: "fitFrameToContent") as? Bool ?? true
+        self.frameMargin = UserDefaults.standard.object(forKey: "frameMargin") as? Double ?? 8
         self.frameOpacity = UserDefaults.standard.object(forKey: "frameOpacity") as? Double ?? 0.3
         self.frameCornerRadius = UserDefaults.standard.object(forKey: "frameCornerRadius") as? Double ?? 12
         self.frameColor = Self.load(forKey: "frameColor", default: .black)
@@ -386,15 +407,24 @@ class ClockSettings: ObservableObject {
         }
     }
 
+    /// Clock content plus margin on each side when fitting; otherwise the manual frame size.
+    var windowSize: CGSize {
+        guard fitFrameToContent, contentSize != .zero else {
+            return CGSize(width: frameWidth, height: frameHeight)
+        }
+        return CGSize(width: contentSize.width + 2 * frameMargin, height: contentSize.height + 2 * frameMargin)
+    }
+
     private func updateWindowSize() {
         DispatchQueue.main.async {
             guard let clockWindow = self.clockWindow else { return }
             let currentFrame = clockWindow.frame
+            let size = self.windowSize
             let newFrame = NSRect(
                 x: currentFrame.origin.x,
                 y: currentFrame.origin.y,
-                width: self.frameWidth,
-                height: self.frameHeight
+                width: size.width,
+                height: size.height
             )
             clockWindow.setFrame(newFrame, display: true, animate: false)
         }

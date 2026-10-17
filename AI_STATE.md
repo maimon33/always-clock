@@ -55,3 +55,8 @@
 - `ContentView` draws a rounded frame (own color, opacity, corner radius); `transparency` now applies to text only.
 - `DigitalClockView`: date toggle, `ClockFont` picker (4 system designs), and `textEffects` (outline, glow, adjustable shadow). Analog clock is unchanged.
 - Open: not yet compiled in full Xcode; only typechecked with the Swift compiler.
+
+### 2026-10-18 — Frame fits clock content by default
+- `fitFrameToContent` (default on): window = measured clock size (`contentSize`, from a GeometryReader in `ContentView`) + `frameMargin` on each side. Works for digital and analog.
+- Manual width/height apply only when fit is off.
+- Padding removed from `DigitalClockView` and `AnalogClockView`; the frame margin is now the only spacing around the clock.

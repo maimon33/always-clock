@@ -73,7 +73,6 @@ struct AnalogClockView: View {
                 .frame(width: 8 * settings.clockSize, height: 8 * settings.clockSize)
                 .shadow(color: .black.opacity(0.3), radius: 1 * settings.clockSize, x: 1 * settings.clockSize, y: 1 * settings.clockSize)
         }
-        .padding(16 * settings.clockSize)
         .animation(.easeInOut(duration: 0.1), value: secondAngle)
     }
 }

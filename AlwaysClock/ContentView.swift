@@ -11,6 +11,13 @@ struct ContentView: View {
 
             ClockView()
                 .environmentObject(settings)
+                .background(
+                    GeometryReader { geo in
+                        Color.clear
+                            .onAppear { settings.contentSize = geo.size }
+                            .onChange(of: geo.size) { settings.contentSize = $0 }
+                    }
+                )
                 .opacity(settings.transparency)
         }
     }
